@@ -1,5 +1,5 @@
 export { SocialAuth } from './client'
-export { createSocialAuth, SOCIAL_AUTH_KEY } from './plugin'
+export { createSocialAuth } from './plugin'
 export { useSocialAuth } from './composable'
 export { createStorage } from './storage'
 export { createPkcePair } from './pkce'
