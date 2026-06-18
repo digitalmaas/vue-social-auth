@@ -10,7 +10,7 @@ export default defineConfig({
   sourcemap: true,
   clean: true,
   treeshake: true,
-  external: ['vue', 'vue-demi'],
+  deps: { neverBundle: ['vue', 'vue-demi'] },
   outputOptions: {
     globals: {
       vue: 'Vue',
