@@ -16,7 +16,7 @@ export class SocialAuth {
 
   constructor(options: SocialAuthOptions = {}) {
     const merged = { ...defaultOptions, ...options }
-    this.storage = createStorage(merged.storage, merged.storageNamespace)
+    this.storage = createStorage(options.storage, merged.storageNamespace)
     this.withCredentials = merged.withCredentials
     this.providers = mergeProviders(options.providers ?? {})
   }

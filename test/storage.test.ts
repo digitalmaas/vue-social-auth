@@ -6,8 +6,8 @@ describe('createStorage', () => {
     window.sessionStorage.clear()
   })
 
-  it('namespaces keys in sessionStorage and round-trips values', () => {
-    const storage = createStorage('session', 'ns')
+  it('defaults to sessionStorage and namespaces keys', () => {
+    const storage = createStorage(undefined, 'ns')
     storage.setItem('foo', 'bar')
     expect(window.sessionStorage.getItem('ns.foo')).toBe('bar')
     expect(storage.getItem('foo')).toBe('bar')
@@ -15,27 +15,26 @@ describe('createStorage', () => {
     expect(storage.getItem('foo')).toBeNull()
   })
 
-  it('memory adapter is isolated per instance', () => {
-    const a = createStorage('memory')
-    const b = createStorage('memory')
-    a.setItem('x', '1')
-    expect(b.getItem('x')).toBeNull()
-    expect(a.getItem('x')).toBe('1')
+  it('skips the prefix when namespace is empty', () => {
+    const storage = createStorage(undefined, '')
+    storage.setItem('foo', 'bar')
+    expect(window.sessionStorage.getItem('foo')).toBe('bar')
   })
 
-  it('accepts a custom adapter', () => {
+  it('returns the custom adapter unchanged', () => {
     const calls: string[] = []
-    const adapter = createStorage({
-      getItem: (k) => {
+    const adapter = {
+      getItem: (k: string) => {
         calls.push(`get:${k}`)
         return null
       },
-      setItem: (k) => calls.push(`set:${k}`),
-      removeItem: (k) => calls.push(`del:${k}`),
-    })
-    adapter.setItem('a', 'b')
-    adapter.getItem('a')
-    adapter.removeItem('a')
+      setItem: (k: string) => calls.push(`set:${k}`),
+      removeItem: (k: string) => calls.push(`del:${k}`),
+    }
+    const storage = createStorage(adapter)
+    storage.setItem('a', 'b')
+    storage.getItem('a')
+    storage.removeItem('a')
     expect(calls).toEqual(['set:a', 'get:a', 'del:a'])
   })
 })

@@ -29,25 +29,38 @@ export class OAuth2Runner {
     const state = this.resolveState()
     this.storage.setItem(stateKey, state)
 
-    let verifier: string | undefined
     let challenge: string | undefined
     if (this.providerConfig.pkce) {
       const pair = await createPkcePair()
-      verifier = pair.verifier
       challenge = pair.challenge
-      this.storage.setItem(verifierKey, verifier)
+      this.storage.setItem(verifierKey, pair.verifier)
     }
 
-    const url = `${this.providerConfig.authorizationEndpoint}?${this.buildQuery(state, challenge)}`
-    const popup = new OAuthPopup(url, name, this.providerConfig.popupOptions ?? {})
-    const redirectUri = this.providerConfig.redirectUri ?? ''
-    const response = await popup.open(redirectUri)
+    let response: AuthorizationResponse
+    try {
+      const url = `${this.providerConfig.authorizationEndpoint}?${this.buildQuery(state, challenge)}`
+      const popup = new OAuthPopup(url, name, this.providerConfig.popupOptions ?? {})
+      const redirectUri = this.providerConfig.redirectUri ?? ''
+      response = await popup.open(redirectUri)
+    } catch (err) {
+      this.storage.removeItem(stateKey)
+      this.storage.removeItem(verifierKey)
+      throw err
+    }
 
-    this.storage.removeItem(stateKey)
-    if (verifier) this.storage.removeItem(verifierKey)
-
-    if (response.state && response.state !== state) {
+    const storedState = this.takeItem(stateKey)
+    if (!storedState) {
+      this.storage.removeItem(verifierKey)
+      throw new Error('OAuth state missing from storage — flow aborted')
+    }
+    if (response.state !== storedState) {
+      this.storage.removeItem(verifierKey)
       throw new Error('OAuth state mismatch — possible CSRF')
+    }
+
+    const verifier = this.providerConfig.pkce ? this.takeItem(verifierKey) : undefined
+    if (this.providerConfig.pkce && !verifier) {
+      throw new Error('PKCE code_verifier missing from storage — flow aborted')
     }
 
     if (this.providerConfig.url) {
@@ -57,6 +70,13 @@ export class OAuth2Runner {
       return this.exchangeWithProvider(response, verifier)
     }
     return response
+  }
+
+  /** Read and immediately clear a storage entry. */
+  private takeItem(key: string): string | null {
+    const value = this.storage.getItem(key)
+    this.storage.removeItem(key)
+    return value
   }
 
   private resolveState(): string {

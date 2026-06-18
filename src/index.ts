@@ -12,6 +12,5 @@ export type {
   ProviderConfig,
   SocialAuthOptions,
   StorageAdapter,
-  StorageType,
 } from './types'
 export type { SocialAuthPlugin } from './plugin'

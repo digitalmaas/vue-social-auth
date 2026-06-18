@@ -1,41 +1,27 @@
-import type { StorageAdapter, StorageType } from './types'
+import type { StorageAdapter } from './types'
 
-class WebStorageAdapter implements StorageAdapter {
-  constructor(private readonly storage: Storage, private readonly prefix: string) {}
+class SessionStorageAdapter implements StorageAdapter {
+  constructor(private readonly prefix: string) {}
   private key(key: string): string {
     return this.prefix ? `${this.prefix}.${key}` : key
   }
   getItem(key: string): string | null {
-    return this.storage.getItem(this.key(key))
+    return window.sessionStorage.getItem(this.key(key))
   }
   setItem(key: string, value: string): void {
-    this.storage.setItem(this.key(key), value)
+    window.sessionStorage.setItem(this.key(key), value)
   }
   removeItem(key: string): void {
-    this.storage.removeItem(this.key(key))
+    window.sessionStorage.removeItem(this.key(key))
   }
 }
 
-class MemoryAdapter implements StorageAdapter {
-  private readonly data = new Map<string, string>()
-  getItem(key: string): string | null {
-    return this.data.get(key) ?? null
-  }
-  setItem(key: string, value: string): void {
-    this.data.set(key, value)
-  }
-  removeItem(key: string): void {
-    this.data.delete(key)
-  }
-}
-
-function hasSessionStorage(): boolean {
+function probeSessionStorage(): boolean {
+  if (typeof window === 'undefined') return false
   try {
-    if (typeof window === 'undefined') return false
-    const s = window.sessionStorage
     const probe = `__vsa_probe_${Math.random()}`
-    s.setItem(probe, '1')
-    s.removeItem(probe)
+    window.sessionStorage.setItem(probe, '1')
+    window.sessionStorage.removeItem(probe)
     return true
   } catch {
     return false
@@ -43,12 +29,15 @@ function hasSessionStorage(): boolean {
 }
 
 export function createStorage(
-  type: StorageType | StorageAdapter = 'session',
+  adapter: StorageAdapter | undefined,
   namespace = 'vue-social-auth',
 ): StorageAdapter {
-  if (typeof type === 'object') return type
-  if (type === 'session' && hasSessionStorage()) {
-    return new WebStorageAdapter(window.sessionStorage, namespace)
+  if (adapter) return adapter
+  if (!probeSessionStorage()) {
+    throw new Error(
+      'vue-social-auth: sessionStorage is required but unavailable. ' +
+        'Pass a custom `storage` adapter or enable session storage.',
+    )
   }
-  return new MemoryAdapter()
+  return new SessionStorageAdapter(namespace)
 }

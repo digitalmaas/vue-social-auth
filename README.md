@@ -108,19 +108,23 @@ to your backend as `codeVerifier`.
 
 ## Storage
 
-Used only for short-lived OAuth `state` and PKCE `code_verifier` — cleared once the
-popup completes. The library does **not** persist provider or session tokens; that
-is the consumer's responsibility (e.g. Pinia store, httpOnly cookie set by your
-backend).
+The library writes the OAuth `state` and PKCE `code_verifier` to `sessionStorage`
+when the authorization popup opens, then **reads them once and deletes them** as the
+callback is verified. The library does **not** persist provider or session tokens;
+that is the consumer's responsibility (e.g. Pinia store, httpOnly cookie set by
+your backend).
 
 ```ts
-createSocialAuth({ storage: 'session' }) // default; falls back to memory if unavailable
-createSocialAuth({ storage: 'memory' }) // explicit in-memory (SSR, tests)
+createSocialAuth() // sessionStorage is used by default
 createSocialAuth({ storage: customAdapter }) // implements StorageAdapter
 ```
 
-`localStorage` is intentionally not offered: the only values written are the OAuth
-`state` and PKCE `code_verifier`, both short-lived and cleared after the callback.
+`sessionStorage` is required. If it is unavailable (SSR, private mode in some
+browsers), the constructor throws — pass a custom `StorageAdapter` to bridge to
+whatever storage you do have. `localStorage` and in-memory backends are not offered:
+the verifier and state are short-lived and tied to the auth flow, so long-lived
+storage adds risk without benefit, and an in-memory fallback would silently mask
+sessionStorage being disabled.
 
 ## Built-in provider presets
 

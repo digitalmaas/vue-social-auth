@@ -1,11 +1,12 @@
-import { describe, expect, it, vi } from 'vitest'
-import { OAuth2Runner } from '../src/oauth2'
-import { createStorage } from '../src/storage'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import type { StorageAdapter } from '../src/types'
 import { parseQuery } from '../src/utils'
 
 interface CapturedPopupArgs {
   url: string
 }
+
+let popupResponse: { code: string; state?: string } = { code: 'AUTH_CODE', state: 'fixed-state' }
 
 vi.mock('../src/popup', () => {
   const captured: CapturedPopupArgs = { url: '' }
@@ -14,17 +15,31 @@ vi.mock('../src/popup', () => {
       captured.url = url
     }
     open() {
-      return Promise.resolve({ code: 'AUTH_CODE', state: 'fixed-state' })
+      return Promise.resolve(popupResponse)
     }
   }
   return { OAuthPopup, __captured: captured }
 })
 
 import * as popupModule from '../src/popup'
+import { OAuth2Runner } from '../src/oauth2'
 
-describe('OAuth2Runner URL builder', () => {
+function makeStorage(): StorageAdapter {
+  const data = new Map<string, string>()
+  return {
+    getItem: (k) => data.get(k) ?? null,
+    setItem: (k, v) => void data.set(k, v),
+    removeItem: (k) => void data.delete(k),
+  }
+}
+
+describe('OAuth2Runner', () => {
+  beforeEach(() => {
+    popupResponse = { code: 'AUTH_CODE', state: 'fixed-state' }
+  })
+
   it('encodes default + required + optional params and joins scope', async () => {
-    const storage = createStorage('memory')
+    const storage = makeStorage()
     const runner = new OAuth2Runner(
       storage,
       {
@@ -54,19 +69,29 @@ describe('OAuth2Runner URL builder', () => {
     expect(params.state).toBe('fixed-state')
   })
 
-  it('throws when popup state does not match stored state', async () => {
-    vi.resetModules()
-    vi.doMock('../src/popup', () => ({
-      OAuthPopup: class {
-        constructor() {}
-        open() {
-          return Promise.resolve({ code: 'X', state: 'tampered' })
-        }
+  it('clears state from storage immediately after the popup resolves', async () => {
+    const storage = makeStorage()
+    const runner = new OAuth2Runner(
+      storage,
+      {
+        name: 'p',
+        clientId: 'cid',
+        authorizationEndpoint: 'https://e.test/a',
+        state: 'fixed-state',
+        defaultUrlParams: ['response_type', 'client_id'],
+        responseType: 'code',
       },
-    }))
-    const { OAuth2Runner: Runner } = await import('../src/oauth2')
-    const storage = createStorage('memory')
-    const runner = new Runner(
+      { withCredentials: false },
+    )
+    await runner.run()
+    expect(storage.getItem('p.state')).toBeNull()
+    expect(storage.getItem('p.verifier')).toBeNull()
+  })
+
+  it('throws when the popup state does not match the stored state', async () => {
+    popupResponse = { code: 'AUTH_CODE', state: 'tampered' }
+    const storage = makeStorage()
+    const runner = new OAuth2Runner(
       storage,
       {
         name: 'p',
@@ -79,5 +104,30 @@ describe('OAuth2Runner URL builder', () => {
       { withCredentials: false },
     )
     await expect(runner.run()).rejects.toThrow(/state mismatch/i)
+    expect(storage.getItem('p.state')).toBeNull()
+  })
+
+  it('throws when the stored state is missing (e.g. cross-tab tamper)', async () => {
+    const data = new Map<string, string>()
+    const droppingStorage: StorageAdapter = {
+      getItem: (k) => data.get(k) ?? null,
+      setItem: () => {
+        /* drop writes: simulates storage cleared mid-flow */
+      },
+      removeItem: (k) => void data.delete(k),
+    }
+    const runner = new OAuth2Runner(
+      droppingStorage,
+      {
+        name: 'p',
+        clientId: 'cid',
+        authorizationEndpoint: 'https://e.test/a',
+        state: 'expected',
+        defaultUrlParams: ['response_type', 'client_id'],
+        responseType: 'code',
+      },
+      { withCredentials: false },
+    )
+    await expect(runner.run()).rejects.toThrow(/state missing/i)
   })
 })
