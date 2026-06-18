@@ -2,16 +2,19 @@ pre-commit:
   parallel: true
   commands:
     lint:
-      glob: "*.{ts,tsx,js,mjs,cjs}"
+      glob: '*.{ts,tsx,js,mjs,cjs}'
       run: npx oxlint {staged_files}
     format:
-      glob: "*.{ts,tsx,js,mjs,cjs,json,jsonc}"
+      glob: '*.{ts,tsx,js,mjs,cjs,json,jsonc}'
       run: npx oxfmt {staged_files}
       stage_fixed: true
 
+commit-msg:
+  commands:
+    commitlint:
+      run: npx commitlint --edit {1}
+
 pre-push:
   commands:
-    typecheck:
-      run: npm run typecheck
     test:
       run: npm test

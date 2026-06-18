@@ -2,8 +2,36 @@
   "name": "@digitalmaas/vue-social-auth",
   "version": "0.0.0",
   "description": "Social OAuth 2.0 authentication for Vue 2.7+ and Vue 3",
+  "keywords": [
+    "authentication",
+    "digitalmaas",
+    "facebook",
+    "github",
+    "google",
+    "instagram",
+    "oauth",
+    "oauth2",
+    "pkce",
+    "social",
+    "vue",
+    "vue2.7",
+    "vue3"
+  ],
   "license": "MIT",
+  "author": "DigitalMaas (https://www.digitalmaas.com)",
+  "contributors": [
+    "Andre-John Mas <andrejohn.mas+gh@gmail.com>",
+    "Claude <noreply@anthropic.com> (https://claude.ai)",
+    "Davor Grubelic <davor.grubelic@gmail.com>",
+    "Ricardo Nolde <12801563+nolde@users.noreply.github.com>"
+  ],
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
   "type": "module",
+  "sideEffects": false,
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -17,61 +45,43 @@
     },
     "./package.json": "./package.json"
   },
-  "files": [
-    "dist",
-    "README.md",
-    "LICENSE"
-  ],
-  "sideEffects": false,
-  "keywords": [
-    "vue",
-    "vue3",
-    "vue2",
-    "oauth",
-    "oauth2",
-    "pkce",
-    "social",
-    "authentication",
-    "google",
-    "github",
-    "facebook",
-    "instagram"
-  ],
   "scripts": {
     "build": "tsdown",
+    "check": "npm run lint && npm run format:check && npm run test:types",
     "dev": "tsdown --watch",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "typecheck": "tsc --noEmit",
-    "lint": "oxlint",
-    "lint:fix": "oxlint --fix",
     "format": "oxfmt",
     "format:check": "oxfmt --check",
-    "check": "npm run lint && npm run format:check && npm run typecheck",
+    "lint": "oxlint",
+    "lint:fix": "oxlint --fix",
     "prepare": "lefthook install",
-    "prepublishOnly": "npm run check && npm run test && npm run build"
-  },
-  "peerDependencies": {
-    "vue": "^2.7.0 || >=3.0.0"
+    "prepublishOnly": "npm run check && npm run test && npm run build",
+    "test": "npm run test:types && npm run test:unit",
+    "test:types": "tsc --noEmit",
+    "test:unit": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "vue-demi": "^0.14.10"
   },
   "devDependencies": {
-    "@types/node": "^20.11.0",
-    "happy-dom": "^14.0.0",
-    "lefthook": "^1.6.0",
-    "oxfmt": "^0.1.0",
-    "oxlint": "^0.15.0",
-    "tsdown": "^0.22.0",
-    "typescript": "^5.4.0",
-    "vitest": "^1.4.0",
-    "vue": "^3.4.0"
+    "@commitlint/cli": "19.0.0",
+    "@commitlint/config-conventional": "19.0.0",
+    "@types/node": "20.19.43",
+    "happy-dom": "20.10.6",
+    "lefthook": "2.1.9",
+    "oxfmt": "0.55.0",
+    "oxlint": "1.70.0",
+    "tsdown": "0.22.0",
+    "typescript": "5.9.3",
+    "vitest": "4.1.9",
+    "vue": "3.4.0"
   },
-  "contributors": [
-    "Ricardo Nolde <12801563+nolde@users.noreply.github.com>",
-    "Davor Grubelic <davor.grubelic@gmail.com>",
-    "Andre-John Mas <andrejohn.mas+gh@gmail.com>"
-  ],
-  "author": "DigitalMaas (https://www.digitalmaas.com)"
+  "peerDependencies": {
+    "vue": "^2.7.0 || >=3.0.0"
+  },
+  "allowScripts": {
+    "lefthook@2.1.9": true,
+    "esbuild@0.21.5": true,
+    "vue-demi@0.14.10": true
+  }
 }
