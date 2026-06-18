@@ -16,7 +16,6 @@ export const providerPresets: Record<string, Partial<ProviderConfig>> = {
   google: {
     name: 'google',
     authorizationEndpoint: 'https://accounts.google.com/o/oauth2/v2/auth',
-    tokenEndpoint: 'https://oauth2.googleapis.com/token',
     redirectUri: buildRedirectUri(),
     requiredUrlParams: ['scope'],
     optionalUrlParams: ['display', 'state'],
@@ -28,7 +27,6 @@ export const providerPresets: Record<string, Partial<ProviderConfig>> = {
   github: {
     name: 'github',
     authorizationEndpoint: 'https://github.com/login/oauth/authorize',
-    tokenEndpoint: 'https://github.com/login/oauth/access_token',
     redirectUri: buildRedirectUri(),
     optionalUrlParams: ['scope', 'state'],
     scope: ['user:email'],
@@ -39,7 +37,6 @@ export const providerPresets: Record<string, Partial<ProviderConfig>> = {
   facebook: {
     name: 'facebook',
     authorizationEndpoint: 'https://www.facebook.com/v18.0/dialog/oauth',
-    tokenEndpoint: 'https://graph.facebook.com/v18.0/oauth/access_token',
     redirectUri: buildRedirectUri('/'),
     requiredUrlParams: ['display', 'scope'],
     optionalUrlParams: ['state'],
@@ -52,7 +49,6 @@ export const providerPresets: Record<string, Partial<ProviderConfig>> = {
   instagram: {
     name: 'instagram',
     authorizationEndpoint: 'https://api.instagram.com/oauth/authorize',
-    tokenEndpoint: 'https://api.instagram.com/oauth/access_token',
     redirectUri: buildRedirectUri(),
     requiredUrlParams: ['scope'],
     optionalUrlParams: ['state'],

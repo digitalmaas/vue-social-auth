@@ -85,36 +85,48 @@ POSTs JSON to that URL:
 The response is returned to the caller verbatim. Your backend is responsible for
 exchanging the code with the provider using the client secret.
 
-### PKCE (no backend secret)
+### PKCE
 
-Set `pkce: true` and a `tokenEndpoint` (the provider's token URL). The built-in
-presets for `google`, `github`, `facebook`, and `instagram` already carry the
-correct `tokenEndpoint`, so for those `pkce: true` is the only extra field
-needed:
+PKCE (Proof Key for Code Exchange, RFC 7636) protects the authorization code
+from interception. Enable it by setting `pkce: true` on a provider. PKCE
+composes with either exchange flow:
 
-```ts
-const socialAuth = createSocialAuth({
-  providers: {
-    google: { clientId: '...', pkce: true },
-  },
-})
-```
+1. **PKCE + backend exchange** (recommended for most providers). Set `url` and
+   `pkce: true`. The library generates a verifier, sends the challenge to the
+   authorization endpoint, and forwards the verifier to your backend as
+   `codeVerifier` alongside the code. Your backend swaps both with the
+   provider. This is the safest browser flow and works regardless of CORS.
 
-For the generic `oauth2` preset (or any custom provider), supply
-`tokenEndpoint` yourself.
+   ```ts
+   createSocialAuth({
+     providers: {
+       github: { clientId: '...', url: '/api/auth/github', pkce: true },
+     },
+   })
+   ```
 
-You can combine both: when both `url` and `pkce` are set, the verifier is forwarded
-to your backend as `codeVerifier`.
+2. **PKCE-only, no backend** (public client). Set `pkce: true` and a
+   `tokenEndpoint` pointing at the provider's token URL. The library posts
+   `application/x-www-form-urlencoded` directly to the provider.
 
-**CORS reality check.** Only Google currently permits browser-direct PKCE
-exchange (its `oauth2.googleapis.com/token` endpoint sends CORS headers).
-GitHub, Facebook, and Instagram do not allow cross-origin requests to their
-token endpoints, so a popup-side PKCE exchange will be blocked by the browser
-even when the URL and verifier are correct. For those providers, use the
-server-exchange flow (`url`): the popup returns the code, the library POSTs it
-to your backend, and your backend completes the exchange — combine with
-`pkce: true` if you want PKCE protection without trusting the client with the
-final swap.
+   ```ts
+   createSocialAuth({
+     providers: {
+       google: {
+         clientId: '...',
+         pkce: true,
+         tokenEndpoint: 'https://oauth2.googleapis.com/token',
+       },
+     },
+   })
+   ```
+
+   **CORS caveat:** Only Google currently permits browser-direct token
+   exchange. GitHub, Facebook, and Instagram do **not** send CORS headers on
+   their token endpoints, so the browser blocks the request even when the URL
+   and verifier are correct. For those providers, use option 1 (backend
+   exchange) instead. The library does not ship default `tokenEndpoint`
+   values for the presets so the configuration choice stays explicit.
 
 ## Storage
 
