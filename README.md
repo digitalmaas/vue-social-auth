@@ -15,13 +15,6 @@ Social OAuth 2.0 authentication for Vue 2.7+ and Vue 3.
 npm install @digitalmaas/vue-social-auth
 ```
 
-`vue` is a peer dependency — install or upgrade it separately if your project
-does not already have it (`^2.7.0` or `>=3.0.0`). The bundle uses
-[`vue-demi`](https://github.com/vueuse/vue-demi) internally to select the
-correct Vue version at install time; it is a regular dependency, so the
-package manager pulls it transitively and runs its post-install switch
-against your installed Vue automatically.
-
 ## Usage
 
 ### Vue plugin
@@ -79,13 +72,13 @@ await auth.authenticate('google')
 Set `providers[name].url`. After the popup returns an authorization code, the library
 POSTs JSON to that URL:
 
-```json
+```jsonc
 {
   "code": "...",
   "clientId": "...",
   "redirectUri": "...",
   "state": "...",
-  "codeVerifier": "..." // when pkce: true
+  "codeVerifier": "..." /* when pkce: true */
 }
 ```
 
@@ -94,23 +87,34 @@ exchanging the code with the provider using the client secret.
 
 ### PKCE (no backend secret)
 
-Set `pkce: true` and `tokenEndpoint` (the provider's token URL). The library
-posts `application/x-www-form-urlencoded` directly to the provider:
+Set `pkce: true` and a `tokenEndpoint` (the provider's token URL). The built-in
+presets for `google`, `github`, `facebook`, and `instagram` already carry the
+correct `tokenEndpoint`, so for those `pkce: true` is the only extra field
+needed:
 
 ```ts
 const socialAuth = createSocialAuth({
   providers: {
-    google: {
-      clientId: '...',
-      pkce: true,
-      tokenEndpoint: 'https://oauth2.googleapis.com/token',
-    },
+    google: { clientId: '...', pkce: true },
   },
 })
 ```
 
+For the generic `oauth2` preset (or any custom provider), supply
+`tokenEndpoint` yourself.
+
 You can combine both: when both `url` and `pkce` are set, the verifier is forwarded
 to your backend as `codeVerifier`.
+
+**CORS reality check.** Only Google currently permits browser-direct PKCE
+exchange (its `oauth2.googleapis.com/token` endpoint sends CORS headers).
+GitHub, Facebook, and Instagram do not allow cross-origin requests to their
+token endpoints, so a popup-side PKCE exchange will be blocked by the browser
+even when the URL and verifier are correct. For those providers, use the
+server-exchange flow (`url`): the popup returns the code, the library POSTs it
+to your backend, and your backend completes the exchange — combine with
+`pkce: true` if you want PKCE protection without trusting the client with the
+final swap.
 
 ## Storage
 
