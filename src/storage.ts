@@ -29,10 +29,10 @@ class MemoryAdapter implements StorageAdapter {
   }
 }
 
-function hasWindowStorage(kind: 'localStorage' | 'sessionStorage'): boolean {
+function hasSessionStorage(): boolean {
   try {
     if (typeof window === 'undefined') return false
-    const s = window[kind]
+    const s = window.sessionStorage
     const probe = `__vsa_probe_${Math.random()}`
     s.setItem(probe, '1')
     s.removeItem(probe)
@@ -47,10 +47,7 @@ export function createStorage(
   namespace = 'vue-social-auth',
 ): StorageAdapter {
   if (typeof type === 'object') return type
-  if (type === 'local' && hasWindowStorage('localStorage')) {
-    return new WebStorageAdapter(window.localStorage, namespace)
-  }
-  if (type === 'session' && hasWindowStorage('sessionStorage')) {
+  if (type === 'session' && hasSessionStorage()) {
     return new WebStorageAdapter(window.sessionStorage, namespace)
   }
   return new MemoryAdapter()

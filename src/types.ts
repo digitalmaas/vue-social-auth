@@ -1,4 +1,4 @@
-export type StorageType = 'local' | 'session' | 'memory'
+export type StorageType = 'session' | 'memory'
 
 export interface StorageAdapter {
   getItem(key: string): string | null
@@ -51,7 +51,11 @@ export interface AuthenticateOptions {
 }
 
 export interface SocialAuthOptions {
-  /** Where to keep OAuth `state` and PKCE `code_verifier`. Default: `session`. */
+  /**
+   * Where to keep OAuth `state` and PKCE `code_verifier` between popup open and
+   * callback. Cleared immediately after use, so persistence is not required.
+   * Default: `session`. Falls back to in-memory when sessionStorage is unavailable.
+   */
   storage?: StorageType | StorageAdapter
   /** Storage key prefix. Default: `vue-social-auth`. */
   storageNamespace?: string

@@ -26,7 +26,7 @@ import { createSocialAuth } from '@digitalmaas/vue-social-auth'
 import App from './App.vue'
 
 const socialAuth = createSocialAuth({
-  storage: 'session', // 'local' | 'session' | 'memory' | custom adapter
+  storage: 'session', // 'session' | 'memory' | custom adapter
   providers: {
     google: {
       clientId: 'YOUR_GOOGLE_CLIENT_ID',
@@ -114,11 +114,13 @@ is the consumer's responsibility (e.g. Pinia store, httpOnly cookie set by your
 backend).
 
 ```ts
-createSocialAuth({ storage: 'session' }) // default
-createSocialAuth({ storage: 'local' })
-createSocialAuth({ storage: 'memory' })
+createSocialAuth({ storage: 'session' }) // default; falls back to memory if unavailable
+createSocialAuth({ storage: 'memory' }) // explicit in-memory (SSR, tests)
 createSocialAuth({ storage: customAdapter }) // implements StorageAdapter
 ```
+
+`localStorage` is intentionally not offered: the only values written are the OAuth
+`state` and PKCE `code_verifier`, both short-lived and cleared after the callback.
 
 ## Built-in provider presets
 
