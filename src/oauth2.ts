@@ -73,10 +73,10 @@ export class OAuth2Runner {
   }
 
   /** Read and immediately clear a storage entry. */
-  private takeItem(key: string): string | null {
+  private takeItem(key: string): string | undefined {
     const value = this.storage.getItem(key)
     this.storage.removeItem(key)
-    return value
+    return value ?? undefined
   }
 
   private resolveState(): string {
