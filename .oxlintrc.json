@@ -21,7 +21,6 @@
     "no-debugger": "error",
     "unicorn/prefer-node-protocol": "error",
     "unicorn/no-null": "off",
-    "unicorn/prevent-abbreviations": "off",
     "typescript/no-explicit-any": "warn",
     "typescript/consistent-type-imports": "error",
     "import/no-duplicates": "error"
