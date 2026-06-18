@@ -28,6 +28,24 @@ function probeSessionStorage(): boolean {
   }
 }
 
+/**
+ * Resolve the storage adapter the library uses for the OAuth `state` and PKCE
+ * `code_verifier`. Returns the supplied custom adapter when present;
+ * otherwise builds a `sessionStorage`-backed adapter that prefixes every key
+ * with `namespace`.
+ *
+ * @param adapter - A custom adapter, or `undefined` to use `sessionStorage`.
+ * @param namespace - Prefix prepended to every key, separated by `.`. Pass
+ *   an empty string to disable prefixing.
+ *
+ * @returns A {@link StorageAdapter} ready to be passed to the OAuth runner.
+ *
+ * @throws If `adapter` is `undefined` and `window.sessionStorage` is
+ *   unavailable (SSR, private mode in some browsers). Pass a custom adapter
+ *   to recover.
+ *
+ * @public
+ */
 export function createStorage(
   adapter: StorageAdapter | undefined,
   namespace = 'vue-social-auth',

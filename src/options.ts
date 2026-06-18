@@ -14,6 +14,23 @@ export const defaultProviderConfig: Partial<ProviderConfig> = {
   defaultUrlParams: ['response_type', 'client_id', 'redirect_uri'],
 }
 
+/**
+ * Built-in provider configurations. Every entry in
+ * {@link SocialAuthOptions.providers} is shallow-merged onto the matching
+ * preset, so consumers usually only supply `clientId` (and either `url` or
+ * `tokenEndpoint`) for the major providers.
+ *
+ * Shipped presets:
+ *
+ * - `google` — Google Identity Services
+ * - `github` — GitHub OAuth
+ * - `facebook` — Facebook Login
+ * - `instagram` — Instagram Basic Display (deprecated by Meta; prefer
+ *   Facebook Login with Instagram scopes for new integrations)
+ * - `oauth2` — a generic OAuth 2.0 skeleton with no provider-specific URLs
+ *
+ * @public
+ */
 export const providerPresets: Record<string, Partial<ProviderConfig>> = {
   google: {
     name: 'google',
