@@ -146,9 +146,10 @@ neither is set, returns the raw `{ code, state }` from the popup.
 
 ## Build
 
-- `npm run build` — emits ESM (`dist/index.js`), IIFE (`dist/index.global.js`), and
-  `.d.ts` via [tsup](https://tsup.egoist.dev/).
+- `npm run build` — emits ESM (`dist/index.js`), UMD (`dist/index.umd.js`), and
+  `.d.ts` via [tsdown](https://tsdown.dev/) (Rolldown + Oxc).
 - `npm test` — runs vitest with jsdom.
+- `npm run check` — runs `oxlint`, `oxfmt --check`, and `tsc --noEmit`.
 
 ## License
 
