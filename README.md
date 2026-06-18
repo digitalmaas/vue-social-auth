@@ -15,6 +15,24 @@ Social OAuth 2.0 authentication for Vue 2.7+ and Vue 3.
 npm install @digitalmaas/vue-social-auth
 ```
 
+### Approve vue-demi's post-install script
+
+`vue-demi` ships a `postinstall` script (`vue-demi-switch`) that aligns the
+package with the Vue version present in your project. Modern package managers
+block install scripts by default, so you may have to approve `vue-demi`
+explicitly the first time you install:
+
+| Package manager | Command |
+| --- | --- |
+| npm (11+)       | `npm approve-scripts vue-demi` (or add `"allowScripts": { "vue-demi@<ver>": true }` to your `package.json`) |
+| pnpm            | add `vue-demi` to `pnpm.onlyBuiltDependencies` in `package.json`, then `pnpm install` |
+| yarn (berry)    | `yarn config set enableScripts true` (project scope), or add to `dependenciesMeta` |
+
+Symptom that it was skipped: the bundle imports the Vue 3 entry of `vue-demi`
+on a Vue 2.7 project and you see errors like `Cannot read properties of
+undefined (reading 'createApp')` or `'isVue2' is not exported by vue-demi`.
+Running the approval command and reinstalling fixes it.
+
 ## Usage
 
 ### Vue plugin
