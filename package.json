@@ -59,7 +59,7 @@
   },
   "devDependencies": {
     "@types/node": "^20.11.0",
-    "jsdom": "^24.0.0",
+    "happy-dom": "^14.0.0",
     "lefthook": "^1.6.0",
     "oxfmt": "^0.1.0",
     "oxlint": "^0.15.0",

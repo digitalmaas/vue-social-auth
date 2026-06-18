@@ -148,7 +148,7 @@ neither is set, returns the raw `{ code, state }` from the popup.
 
 - `npm run build` — emits ESM (`dist/index.js`), UMD (`dist/index.umd.js`), and
   `.d.ts` via [tsdown](https://tsdown.dev/) (Rolldown + Oxc).
-- `npm test` — runs vitest with jsdom.
+- `npm test` — runs vitest with happy-dom.
 - `npm run check` — runs `oxlint`, `oxfmt --check`, and `tsc --noEmit`.
 
 ## License
