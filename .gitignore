@@ -2,6 +2,9 @@ node_modules
 dist
 coverage
 *.log
+*.orig
 .DS_Store
 .vscode
+.sublime
 .idea
+*.tgz
