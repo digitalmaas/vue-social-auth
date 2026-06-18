@@ -12,7 +12,14 @@ Social OAuth 2.0 authentication for Vue 2.7+ and Vue 3.
 ## Install
 
 ```sh
+# npm
 npm install @digitalmaas/vue-social-auth
+
+# pnpm
+pnpm add @digitalmaas/vue-social-auth
+
+# yarn
+yarn add @digitalmaas/vue-social-auth
 ```
 
 ### Approve vue-demi's post-install script
