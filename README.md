@@ -7,14 +7,20 @@ Social OAuth 2.0 authentication for Vue 2.7+ and Vue 3.
 - Zero HTTP dependencies — uses `window.fetch`
 - Dual Vue 2.7+ / Vue 3 via [`vue-demi`](https://github.com/vueuse/vue-demi)
 - Ships ESM + IIFE (`<script>` tag)
+- Based on [vue-authenticate](https://github.com/dgrubelic/vue-authenticate) and [vue-authenticate-2](https://github.com/ajmas/vue-authenticate-2)
 
 ## Install
 
 ```sh
-npm install @digitalmaas/vue-social-auth vue-demi
+npm install @digitalmaas/vue-social-auth
 ```
 
-`vue-demi` is a runtime peer that selects the correct Vue version.
+`vue` is a peer dependency — install or upgrade it separately if your project
+does not already have it (`^2.7.0` or `>=3.0.0`). The bundle uses
+[`vue-demi`](https://github.com/vueuse/vue-demi) internally to select the
+correct Vue version at install time; it is a regular dependency, so the
+package manager pulls it transitively and runs its post-install switch
+against your installed Vue automatically.
 
 ## Usage
 
