@@ -57,7 +57,7 @@ function mergeProviders(
     out[key] = { ...providerPresets[key] }
   }
   for (const key of Object.keys(user)) {
-    out[key] = { ...(out[key] ?? {}), ...user[key] }
+    out[key] = { ...out[key], ...user[key] }
   }
   return out
 }

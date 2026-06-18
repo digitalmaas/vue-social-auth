@@ -18,7 +18,7 @@ vi.mock('../src/popup', () => {
       return Promise.resolve(popupResponse)
     }
   }
-  return { OAuthPopup, __captured: captured }
+  return { OAuthPopup, captured }
 })
 
 import * as popupModule from '../src/popup'
@@ -58,7 +58,7 @@ describe('OAuth2Runner', () => {
     )
 
     await runner.run()
-    const captured = (popupModule as unknown as { __captured: CapturedPopupArgs }).__captured
+    const { captured } = popupModule as unknown as { captured: CapturedPopupArgs }
     const [endpoint, query] = captured.url.split('?')
     expect(endpoint).toBe('https://example.test/authorize')
     const params = parseQuery(query!)
