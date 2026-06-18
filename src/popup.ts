@@ -79,8 +79,7 @@ export class OAuthPopup {
         }
         if (!href || href === 'about:blank') return
         const matchesRedirect =
-          this.popup.location.pathname === redirectPath ||
-          href.startsWith(redirectUri)
+          this.popup.location.pathname === redirectPath || href.startsWith(redirectUri)
         if (!matchesRedirect) return
 
         const search = this.popup.location.search

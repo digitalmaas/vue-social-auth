@@ -1,4 +1,5 @@
 import { getCurrentInstance, inject } from 'vue-demi'
+
 import type { SocialAuth } from './client'
 import { SOCIAL_AUTH_KEY } from './plugin'
 
@@ -7,7 +8,8 @@ export function useSocialAuth(): SocialAuth {
   if (fromInject) return fromInject
 
   const instance = getCurrentInstance()
-  const fromGlobal = (instance?.proxy as unknown as { $socialAuth?: SocialAuth } | null)?.$socialAuth
+  const fromGlobal = (instance?.proxy as unknown as { $socialAuth?: SocialAuth } | null)
+    ?.$socialAuth
   if (fromGlobal) return fromGlobal
 
   throw new Error(

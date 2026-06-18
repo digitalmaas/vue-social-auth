@@ -1,14 +1,18 @@
+import { createPkcePair } from './pkce'
+import { OAuthPopup } from './popup'
 import type {
   AuthenticateResult,
   AuthorizationResponse,
   ProviderConfig,
   StorageAdapter,
 } from './types'
-import { OAuthPopup } from './popup'
-import { createPkcePair } from './pkce'
 import { camelCase, encodeForm, isFunction, isString, randomString } from './utils'
 
-const STATE_PARAM_CATEGORIES = ['defaultUrlParams', 'requiredUrlParams', 'optionalUrlParams'] as const
+const STATE_PARAM_CATEGORIES = [
+  'defaultUrlParams',
+  'requiredUrlParams',
+  'optionalUrlParams',
+] as const
 
 export interface OAuth2RunnerOptions {
   withCredentials: boolean
@@ -147,9 +151,7 @@ export class OAuth2Runner {
       pairs.push(['code_challenge', challenge])
       pairs.push(['code_challenge_method', 'S256'])
     }
-    return pairs
-      .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
-      .join('&')
+    return pairs.map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`).join('&')
   }
 
   private resolveParam(paramName: string, state: string): string | undefined {

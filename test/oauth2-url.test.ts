@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+
 import type { StorageAdapter } from '../src/types'
 import { parseQuery } from '../src/utils'
 
@@ -21,8 +22,8 @@ vi.mock('../src/popup', () => {
   return { OAuthPopup, captured }
 })
 
-import * as popupModule from '../src/popup'
 import { OAuth2Runner } from '../src/oauth2'
+import * as popupModule from '../src/popup'
 
 function makeStorage(): StorageAdapter {
   const data = new Map<string, string>()

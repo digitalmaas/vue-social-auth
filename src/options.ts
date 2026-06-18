@@ -1,7 +1,9 @@
 import type { ProviderConfig, SocialAuthOptions } from './types'
 import { buildRedirectUri } from './utils'
 
-export const defaultOptions: Required<Pick<SocialAuthOptions, 'storageNamespace' | 'withCredentials'>> = {
+export const defaultOptions: Required<
+  Pick<SocialAuthOptions, 'storageNamespace' | 'withCredentials'>
+> = {
   storageNamespace: 'vue-social-auth',
   withCredentials: false,
 }

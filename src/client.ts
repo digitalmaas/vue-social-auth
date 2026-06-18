@@ -1,3 +1,6 @@
+import { OAuth2Runner } from './oauth2'
+import { defaultOptions, defaultProviderConfig, providerPresets } from './options'
+import { createStorage } from './storage'
 import type {
   AuthenticateOptions,
   AuthenticateResult,
@@ -5,9 +8,6 @@ import type {
   SocialAuthOptions,
   StorageAdapter,
 } from './types'
-import { defaultOptions, defaultProviderConfig, providerPresets } from './options'
-import { createStorage } from './storage'
-import { OAuth2Runner } from './oauth2'
 
 export class SocialAuth {
   readonly storage: StorageAdapter

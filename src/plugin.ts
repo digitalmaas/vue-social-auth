@@ -1,4 +1,5 @@
 import type { App as App3 } from 'vue-demi'
+
 import { SocialAuth } from './client'
 import type { SocialAuthOptions } from './types'
 
