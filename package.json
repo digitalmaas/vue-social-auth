@@ -55,9 +55,14 @@
     "lint:fix": "oxlint --fix",
     "prepare": "lefthook install",
     "prepublishOnly": "npm run check && npm run test && npm run build",
-    "test": "npm run test:types && npm run test:unit",
-    "test:types": "tsc --noEmit",
-    "test:unit": "vitest run",
+    "test": "npm run test:types && npm run test:unit && npm run test:integration",
+    "test:types": "vue-demi-switch 3 vue3 && tsc --noEmit",
+    "test:unit": "npm run test:unit:vue3 && npm run test:unit:vue2",
+    "test:unit:vue3": "vue-demi-switch 3 vue3 && vitest run test/unit",
+    "test:unit:vue2": "vue-demi-switch 2.7 vue2 && vitest run test/unit && vue-demi-switch 3 vue3",
+    "test:integration": "npm run test:integration:vue3 && npm run test:integration:vue2",
+    "test:integration:vue3": "vue-demi-switch 3 vue3 && vitest run test/integration",
+    "test:integration:vue2": "vue-demi-switch 2.7 vue2 && vitest run test/integration --exclude \"**/vue-flow.test.ts\" && vue-demi-switch 3 vue3",
     "test:watch": "vitest"
   },
   "dependencies": {
@@ -74,7 +79,8 @@
     "tsdown": "0.22.0",
     "typescript": "5.9.3",
     "vitest": "4.1.9",
-    "vue": "3.4.0"
+    "vue2": "npm:vue@^2.7.0",
+    "vue3": "npm:vue@^3.4.0"
   },
   "peerDependencies": {
     "vue": "^2.7.0 || >=3.0.0"

@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import type { StorageAdapter } from '../src/types'
-import { parseQuery } from '../src/utils'
+import type { StorageAdapter } from '../../src/types'
+import { parseQuery } from '../../src/utils'
 
 interface CapturedPopupArgs {
   url: string
@@ -9,7 +9,7 @@ interface CapturedPopupArgs {
 
 let popupResponse: { code: string; state?: string } = { code: 'AUTH_CODE', state: 'fixed-state' }
 
-vi.mock('../src/popup', () => {
+vi.mock('../../src/popup', () => {
   const captured: CapturedPopupArgs = { url: '' }
   class OAuthPopup {
     constructor(url: string) {
@@ -22,8 +22,8 @@ vi.mock('../src/popup', () => {
   return { OAuthPopup, captured }
 })
 
-import { OAuth2Runner } from '../src/oauth2'
-import * as popupModule from '../src/popup'
+import { OAuth2Runner } from '../../src/oauth2'
+import * as popupModule from '../../src/popup'
 
 function makeStorage(): StorageAdapter {
   const data = new Map<string, string>()

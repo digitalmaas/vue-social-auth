@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { createPkcePair } from '../src/pkce'
+import { createPkcePair } from '../../src/pkce'
 
 describe('createPkcePair', () => {
   it('produces a verifier and S256 challenge of valid lengths', async () => {
