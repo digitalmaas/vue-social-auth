@@ -117,6 +117,13 @@ export interface ProviderConfig {
   /** Popup window size. See {@link PopupOptions}. */
   popupOptions?: PopupOptions
   /**
+   * Milliseconds to wait for the popup to deliver a result before giving up
+   * with a `timeout` error. Covers both the `postMessage` and polling
+   * channels.
+   * @defaultValue `300000` (5 minutes)
+   */
+  popupTimeoutMs?: number
+  /**
    * Extra arbitrary parameters merged into the authorization URL when listed
    * by name in `requiredUrlParams` / `optionalUrlParams`.
    */

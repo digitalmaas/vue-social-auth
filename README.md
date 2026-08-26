@@ -152,6 +152,80 @@ composes with either exchange flow:
    exchange) instead. The library does not ship default `tokenEndpoint`
    values for the presets so the configuration choice stays explicit.
 
+## The callback page
+
+When the popup returns, the library reads the result over one of two channels.
+Both are armed for every flow; whichever answers first wins.
+
+**Same-origin callback — nothing to do.** If your `redirectUri` is on the same
+origin as your app, the library reads the popup's URL directly and you need no
+callback page.
+
+**Cross-origin callback — host a callback page.** If the callback lands on a
+different origin (app on `app.example.com`, callback on `auth.example.com`), the
+browser forbids reading the popup's URL, so the result must be posted back:
+
+```html
+<!-- https://auth.example.com/callback -->
+<script type="module">
+  import { postAuthorizationResult } from '@digitalmaas/vue-social-auth/callback'
+  postAuthorizationResult({ targetOrigin: 'https://app.example.com' })
+</script>
+```
+
+`targetOrigin` is required and must be your app's exact origin. It is passed
+straight to `postMessage`, and the payload carries the authorization code —
+`'*'` would hand that code to whoever owns the opener. The library cannot infer
+it, because only you know which origin is legitimate.
+
+The parent accepts a message only if it came from the window it opened, from the
+`redirectUri`'s origin, carries the library's envelope, and matches the `state`
+of the flow in progress. Anything else is ignored.
+
+The callback entry point is a separate, framework-free bundle (~2 kB): the page
+does not load the client or Vue.
+
+### Timeouts
+
+Every flow gives up after `popupTimeoutMs` (default 5 minutes) and rejects with
+`code: 'timeout'`, releasing its timers and clearing stored values. Set it per
+provider.
+
+### A note on `window.opener`
+
+The popup keeps a reference to your app window — `postMessage` needs it, and it
+survives the popup's navigations, so the provider's page holds that reference
+while the popup is open. In principle the provider (or an open redirect chained
+through it) could navigate your app. We cannot remove this without giving up the
+return channel. It is bounded by the timeout above and by the provider being a
+party you already trust with authentication. If that is unacceptable for your
+threat model, you need a redirect-based flow, which this library does not offer.
+
+## Errors
+
+Every failure throws a `SocialAuthError` with a `code` you can branch on:
+
+```ts
+import { SocialAuthError } from '@digitalmaas/vue-social-auth'
+
+try {
+  await socialAuth.authenticate('google')
+} catch (error) {
+  if (error instanceof SocialAuthError && error.code === 'popup_closed') {
+    // the user changed their mind — not worth showing an error banner
+  }
+}
+```
+
+Codes: `config`, `popup_blocked`, `popup_closed`, `timeout`, `provider_error`,
+`state_mismatch`, `state_missing`, `verifier_missing`, `exchange_failed`.
+
+`message` is always a fixed library string. Text supplied by the provider is
+kept out of it and exposed separately as `providerError` and
+`providerErrorDescription` (and `status` for a failed exchange), so that a value
+an attacker can influence is not rendered by apps that display `error.message`.
+Escape those fields before displaying them.
+
 ## Storage
 
 The library writes the OAuth `state` and PKCE `code_verifier` to `sessionStorage`

@@ -4,6 +4,8 @@ export { useSocialAuth } from './composable'
 export { createStorage } from './storage'
 export { createPkcePair } from './pkce'
 export { providerPresets } from './options'
+export { SocialAuthError } from './errors'
+export type { SocialAuthErrorCode } from './errors'
 export type {
   AuthenticateOptions,
   AuthenticateResult,

@@ -25,6 +25,53 @@ export function fakePopup(redirectHref: string) {
   }
 }
 
+/**
+ * Fake popup whose `location` throws on access, as a real cross-origin popup
+ * does. The polling channel can learn nothing from this window, so a flow that
+ * completes against it completed via `postMessage`.
+ */
+export function fakeCrossOriginPopup() {
+  return {
+    closed: false,
+    focus() {},
+    close() {
+      this.closed = true
+    },
+    get location(): never {
+      throw new DOMException('Blocked a frame from accessing a cross-origin frame.')
+    },
+  }
+}
+
+/** Stub `window.open` to return a popup whose location is unreadable. */
+export function stubCrossOriginPopupOpen() {
+  const popup = fakeCrossOriginPopup()
+  const spy = vi.spyOn(window, 'open').mockImplementation(() => popup as unknown as Window)
+  return { popup, spy }
+}
+
+/**
+ * Deliver a `message` event to the parent window, exactly as a callback page
+ * calling `postAuthorizationResult` would. Every field is overridable so the
+ * rejection paths (wrong origin, wrong source, bad envelope) can be driven.
+ */
+export function deliverCallbackMessage(options: {
+  data: unknown
+  origin: string
+  source: unknown
+}): void {
+  const event = new MessageEvent('message', { data: options.data, origin: options.origin })
+  // happy-dom will not accept an arbitrary object as `source` via the
+  // constructor, so pin it directly.
+  Object.defineProperty(event, 'source', { value: options.source, configurable: true })
+  window.dispatchEvent(event)
+}
+
+/** The envelope `postAuthorizationResult` puts on the wire. */
+export function callbackEnvelope(params: Record<string, string>) {
+  return { source: 'vue-social-auth', params }
+}
+
 /** Stub `window.open` to land on `redirectHref`. Returns the spy. */
 export function stubPopupOpen(redirectHref: string) {
   return vi

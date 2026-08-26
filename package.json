@@ -44,6 +44,12 @@
       "require": "./dist/index.umd.js",
       "default": "./dist/index.umd.js"
     },
+    "./callback": {
+      "types": "./dist/callback.d.ts",
+      "import": "./dist/callback.js",
+      "require": "./dist/callback.umd.js",
+      "default": "./dist/callback.umd.js"
+    },
     "./package.json": "./package.json"
   },
   "scripts": {

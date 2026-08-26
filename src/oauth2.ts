@@ -1,3 +1,4 @@
+import { SocialAuthError } from './errors'
 import { buildAuthorizationQuery } from './options'
 import { createPkcePair } from './pkce'
 import { OAuthPopup } from './popup'
@@ -26,41 +27,56 @@ export class OAuth2Runner {
     const verifierKey = `${name}.verifier`
 
     const state = this.resolveState()
-    this.storage.setItem(stateKey, state)
 
+    // Generate the PKCE pair BEFORE writing anything: crypto.subtle throws in
+    // a non-secure context, and a flow that cannot start must leave no trace.
     let challenge: string | undefined
+    let verifierValue: string | undefined
     if (this.providerConfig.pkce) {
       const pair = await createPkcePair()
       challenge = pair.challenge
-      this.storage.setItem(verifierKey, pair.verifier)
+      verifierValue = pair.verifier
     }
+
+    const clear = (): void => {
+      this.storage.removeItem(stateKey)
+      this.storage.removeItem(verifierKey)
+    }
+
+    this.storage.setItem(stateKey, state)
+    if (verifierValue !== undefined) this.storage.setItem(verifierKey, verifierValue)
 
     let response: AuthorizationResponse
     try {
       const query = buildAuthorizationQuery(this.providerConfig, state, challenge)
       const url = `${this.providerConfig.authorizationEndpoint}?${query}`
       const popup = new OAuthPopup(url, name, this.providerConfig.popupOptions ?? {})
-      const redirectUri = this.providerConfig.redirectUri ?? ''
-      response = await popup.open(redirectUri)
+      response = await popup.open({
+        redirectUri: this.providerConfig.redirectUri ?? '',
+        expectedState: state,
+        timeoutMs: this.providerConfig.popupTimeoutMs,
+      })
     } catch (err) {
-      this.storage.removeItem(stateKey)
-      this.storage.removeItem(verifierKey)
+      clear()
       throw err
     }
 
     const storedState = this.takeItem(stateKey)
     if (!storedState) {
       this.storage.removeItem(verifierKey)
-      throw new Error('OAuth state missing from storage — flow aborted')
+      throw new SocialAuthError('state_missing', 'OAuth state missing from storage — flow aborted')
     }
     if (response.state !== storedState) {
       this.storage.removeItem(verifierKey)
-      throw new Error('OAuth state mismatch — possible CSRF')
+      throw new SocialAuthError('state_mismatch', 'OAuth state mismatch — possible CSRF')
     }
 
     const verifier = this.providerConfig.pkce ? this.takeItem(verifierKey) : undefined
     if (this.providerConfig.pkce && !verifier) {
-      throw new Error('PKCE code_verifier missing from storage — flow aborted')
+      throw new SocialAuthError(
+        'verifier_missing',
+        'PKCE code_verifier missing from storage — flow aborted',
+      )
     }
 
     if (this.providerConfig.url) {
@@ -139,7 +155,10 @@ export class OAuth2Runner {
 async function readJson(res: Response): Promise<Record<string, unknown>> {
   if (!res.ok) {
     const text = await res.text().catch(() => '')
-    throw new Error(`OAuth exchange failed (${res.status}): ${text || res.statusText}`)
+    throw new SocialAuthError('exchange_failed', 'OAuth token exchange failed', {
+      status: res.status,
+      providerErrorDescription: text || res.statusText,
+    })
   }
   const ct = res.headers.get('content-type') ?? ''
   if (ct.includes('application/json')) {

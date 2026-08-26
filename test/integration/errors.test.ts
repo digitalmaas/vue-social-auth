@@ -51,7 +51,10 @@ describe('integration: error propagation end-to-end', () => {
     stubFetch(jsonResponse({ message: 'nope' }, 500))
 
     const pending = makeAuth().authenticate('x')
-    const assertion = expect(pending).rejects.toThrow(/OAuth exchange failed \(500\)/)
+    const assertion = expect(pending).rejects.toMatchObject({
+      code: 'exchange_failed',
+      status: 500,
+    })
     await vi.advanceTimersByTimeAsync(300)
     await vi.runAllTimersAsync()
     await assertion
@@ -63,15 +66,25 @@ describe('integration: error propagation end-to-end', () => {
     )
   })
 
-  it('propagates the provider error from the redirect query', async () => {
-    stubPopupOpen('https://app.test/callback?error=access_denied&error_description=denied')
+  it('exposes the provider error as structured fields, not as message text', async () => {
+    stubPopupOpen(
+      'https://app.test/callback?error=access_denied&error_description=%3Cimg%20onerror%3Dalert(1)%3E',
+    )
     const fetchMock = stubFetch(jsonResponse({}))
 
     const pending = makeAuth().authenticate('x')
-    const assertion = expect(pending).rejects.toThrow(/denied/i)
+    const assertion = expect(pending).rejects.toMatchObject({
+      code: 'provider_error',
+      providerError: 'access_denied',
+      providerErrorDescription: '<img onerror=alert(1)>',
+    })
     await vi.advanceTimersByTimeAsync(300)
     await vi.runAllTimersAsync()
     await assertion
     expect(fetchMock).not.toHaveBeenCalled()
+
+    // the attacker-influenced description must stay out of `message`, which
+    // apps commonly render directly
+    await expect(pending).rejects.toThrow(/^The provider rejected the authorization$/)
   })
 })
