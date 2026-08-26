@@ -394,9 +394,16 @@ neither is set, returns the raw `{ code, state }` from the popup.
 ## Build
 
 - `npm run build` — emits ESM (`dist/index.js`), UMD (`dist/index.umd.js`), and
-  `.d.ts` via [tsdown](https://tsdown.dev/) (Rolldown + Oxc).
-- `npm test` — runs vitest with happy-dom.
+  `.d.ts` via [tsdown](https://tsdown.dev/) (Rolldown + Oxc). The callback entry
+  point is built separately as `dist/callback.js` / `dist/callback.umd.js`.
+- `npm test` — runs vitest with happy-dom, against both Vue 2.7 and Vue 3.
 - `npm run check` — runs `oxlint`, `oxfmt --check`, and `tsc --noEmit`.
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md). Releases are automated from commit
+messages, so the commit message you write decides the next version number —
+that document explains the mapping.
 
 ## License
 
