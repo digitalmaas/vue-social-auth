@@ -6,7 +6,7 @@ Social OAuth 2.0 authentication for Vue 2.7+ and Vue 3.
 - Stateless: returns the exchange response, you store it where you like (Pinia, cookie, etc.)
 - Zero HTTP dependencies — uses `window.fetch`
 - Dual Vue 2.7+ / Vue 3 via [`vue-demi`](https://github.com/vueuse/vue-demi)
-- Ships ESM + IIFE (`<script>` tag)
+- Ships ESM + UMD (`<script>` tag)
 - Based on [vue-authenticate](https://github.com/dgrubelic/vue-authenticate) and [vue-authenticate-2](https://github.com/ajmas/vue-authenticate-2)
 
 ## Install
@@ -50,7 +50,6 @@ import { createSocialAuth } from '@digitalmaas/vue-social-auth'
 import App from './App.vue'
 
 const socialAuth = createSocialAuth({
-  storage: 'session', // 'session' | 'memory' | custom adapter
   providers: {
     google: {
       clientId: 'YOUR_GOOGLE_CLIENT_ID',

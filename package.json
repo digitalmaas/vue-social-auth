@@ -32,7 +32,7 @@
   ],
   "type": "module",
   "sideEffects": false,
-  "main": "./dist/index.cjs",
+  "main": "./dist/index.umd.js",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "unpkg": "./dist/index.umd.js",
@@ -41,6 +41,7 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
+      "require": "./dist/index.umd.js",
       "default": "./dist/index.umd.js"
     },
     "./package.json": "./package.json"
@@ -54,7 +55,8 @@
     "lint": "oxlint",
     "lint:fix": "oxlint --fix",
     "prepare": "lefthook install",
-    "prepublishOnly": "npm run check && npm run test && npm run build",
+    "prepublishOnly": "npm run check && npm run test && npm run build && npm run verify:package",
+    "verify:package": "node scripts/verify-package.mjs",
     "test": "npm run test:types && npm run test:unit && npm run test:integration",
     "test:types": "vue-demi-switch 3 vue3 && tsc --noEmit",
     "test:unit": "npm run test:unit:vue3 && npm run test:unit:vue2",
