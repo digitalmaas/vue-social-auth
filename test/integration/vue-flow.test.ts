@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createApp, defineComponent, h } from 'vue3'
 
 import { createSocialAuth, useSocialAuth } from '../../src'
-import { jsonResponse, stubFetch, stubPopupOpen } from './helpers'
+import { jsonResponse, stubFetch, stubPopupOpenEchoingState } from './helpers'
 
 /**
  * End-to-end through the public API: Vue plugin install → `useSocialAuth`
@@ -20,7 +20,7 @@ describe('integration: Vue plugin → composable → backend exchange', () => {
 
   it('authenticates via the real popup poll and posts the code to the backend url', async () => {
     const fetchMock = stubFetch(jsonResponse({ token: 'JWT' }))
-    const open = stubPopupOpen('https://app.test/callback?code=AUTH_CODE&state=fixed')
+    const open = stubPopupOpenEchoingState('https://app.test/callback', { code: 'AUTH_CODE' })
 
     let pending: Promise<unknown> | undefined
     const Comp = defineComponent({
@@ -38,7 +38,6 @@ describe('integration: Vue plugin → composable → backend exchange', () => {
             clientId: 'CID',
             redirectUri: 'https://app.test/callback',
             url: '/api/auth/google',
-            state: 'fixed', // deterministic so the popup state matches
           },
         },
       }),
@@ -59,14 +58,13 @@ describe('integration: Vue plugin → composable → backend exchange', () => {
       code: 'AUTH_CODE',
       clientId: 'CID',
       redirectUri: 'https://app.test/callback',
-      state: 'fixed',
     })
     expect(result).toEqual({ token: 'JWT' })
   })
 
   it('forwards per-call userData into the exchange body', async () => {
     const fetchMock = stubFetch(jsonResponse({ token: 'JWT' }))
-    stubPopupOpen('https://app.test/callback?code=AUTH_CODE&state=fixed')
+    stubPopupOpenEchoingState('https://app.test/callback', { code: 'AUTH_CODE' })
 
     const app = createApp(
       defineComponent({
@@ -79,7 +77,6 @@ describe('integration: Vue plugin → composable → backend exchange', () => {
           clientId: 'CID',
           redirectUri: 'https://app.test/callback',
           url: '/api/auth/google',
-          state: 'fixed',
         },
       },
     })
@@ -97,7 +94,7 @@ describe('integration: Vue plugin → composable → backend exchange', () => {
   })
 
   it('returns the raw authorization response when no exchange is configured', async () => {
-    stubPopupOpen('https://app.test/callback?code=RAW_CODE&state=fixed')
+    stubPopupOpenEchoingState('https://app.test/callback', { code: 'RAW_CODE' })
     const fetchMock = stubFetch(jsonResponse({ never: true }))
 
     const auth = createSocialAuth({
@@ -107,7 +104,6 @@ describe('integration: Vue plugin → composable → backend exchange', () => {
           clientId: 'CID',
           authorizationEndpoint: 'https://provider.test/auth',
           redirectUri: 'https://app.test/callback',
-          state: 'fixed',
         },
       },
     }).instance
@@ -118,6 +114,7 @@ describe('integration: Vue plugin → composable → backend exchange', () => {
     const result = await pending
 
     expect(fetchMock).not.toHaveBeenCalled()
-    expect(result).toMatchObject({ code: 'RAW_CODE', state: 'fixed' })
+    expect(result).toMatchObject({ code: 'RAW_CODE' })
+    expect((result as { state?: string }).state).toBeTruthy()
   })
 })

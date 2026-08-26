@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { isVue2 } from 'vue-demi'
 
 import { createSocialAuth, useSocialAuth, type SocialAuth } from '../../src'
-import { jsonResponse, mountWithPlugin, stubFetch, stubPopupOpen } from './helpers'
+import { jsonResponse, mountWithPlugin, stubFetch, stubPopupOpenEchoingState } from './helpers'
 
 /**
  * Version-portable integration test. Imports Vue through `vue-demi`, so this
@@ -25,7 +25,7 @@ describe(`integration: cross-version plugin + composable (isVue2=${isVue2})`, ()
 
   it('resolves the instance via useSocialAuth() and authenticates end-to-end', async () => {
     const fetchMock = stubFetch(jsonResponse({ token: 'JWT' }))
-    stubPopupOpen('https://app.test/callback?code=AUTH_CODE&state=fixed')
+    stubPopupOpenEchoingState('https://app.test/callback', { code: 'AUTH_CODE' })
 
     const plugin = createSocialAuth({
       providers: {
@@ -33,7 +33,6 @@ describe(`integration: cross-version plugin + composable (isVue2=${isVue2})`, ()
           clientId: 'CID',
           redirectUri: 'https://app.test/callback',
           url: '/api/auth/google',
-          state: 'fixed',
         },
       },
     })

@@ -1,3 +1,4 @@
+import { buildAuthorizationQuery } from './options'
 import { createPkcePair } from './pkce'
 import { OAuthPopup } from './popup'
 import type {
@@ -6,13 +7,7 @@ import type {
   ProviderConfig,
   StorageAdapter,
 } from './types'
-import { camelCase, encodeForm, isFunction, isString, randomString } from './utils'
-
-const STATE_PARAM_CATEGORIES = [
-  'defaultUrlParams',
-  'requiredUrlParams',
-  'optionalUrlParams',
-] as const
+import { encodeForm, isFunction, randomString } from './utils'
 
 export interface OAuth2RunnerOptions {
   withCredentials: boolean
@@ -42,7 +37,8 @@ export class OAuth2Runner {
 
     let response: AuthorizationResponse
     try {
-      const url = `${this.providerConfig.authorizationEndpoint}?${this.buildQuery(state, challenge)}`
+      const query = buildAuthorizationQuery(this.providerConfig, state, challenge)
+      const url = `${this.providerConfig.authorizationEndpoint}?${query}`
       const popup = new OAuthPopup(url, name, this.providerConfig.popupOptions ?? {})
       const redirectUri = this.providerConfig.redirectUri ?? ''
       response = await popup.open(redirectUri)
@@ -83,10 +79,14 @@ export class OAuth2Runner {
     return value ?? undefined
   }
 
+  /**
+   * A caller-supplied function is invoked once per flow (for server-bound
+   * nonces); otherwise a fresh CSPRNG value is generated. A constant string is
+   * deliberately not accepted — see {@link StateProvider}.
+   */
   private resolveState(): string {
     const raw = this.providerConfig.state
     if (isFunction(raw)) return String(raw())
-    if (isString(raw)) return raw
     return randomString(16)
   }
 
@@ -133,46 +133,6 @@ export class OAuth2Runner {
       body,
     })
     return readJson(res)
-  }
-
-  private buildQuery(state: string, challenge: string | undefined): string {
-    const cfg = this.providerConfig as Record<string, unknown>
-    const pairs: [string, string][] = []
-    for (const category of STATE_PARAM_CATEGORIES) {
-      const names = cfg[category] as string[] | undefined
-      if (!Array.isArray(names)) continue
-      for (const paramName of names) {
-        const value = this.resolveParam(paramName, state)
-        if (value === undefined) continue
-        pairs.push([paramName, value])
-      }
-    }
-    if (challenge) {
-      pairs.push(['code_challenge', challenge])
-      pairs.push(['code_challenge_method', 'S256'])
-    }
-    return pairs.map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`).join('&')
-  }
-
-  private resolveParam(paramName: string, state: string): string | undefined {
-    if (paramName === 'state') return state
-    if (paramName === 'redirect_uri') {
-      return this.providerConfig.redirectUri || undefined
-    }
-    if (paramName === 'scope') {
-      const scope = this.providerConfig.scope
-      if (!Array.isArray(scope) || scope.length === 0) return undefined
-      const delimiter = this.providerConfig.scopeDelimiter ?? ' '
-      const joined = scope.join(delimiter)
-      return this.providerConfig.scopePrefix
-        ? [this.providerConfig.scopePrefix, joined].join(delimiter)
-        : joined
-    }
-    const key = camelCase(paramName)
-    const raw = (this.providerConfig as Record<string, unknown>)[key]
-    if (raw === undefined || raw === null) return undefined
-    if (isFunction(raw)) return String((raw as () => unknown)())
-    return String(raw)
   }
 }
 

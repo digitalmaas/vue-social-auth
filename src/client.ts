@@ -8,6 +8,7 @@ import type {
   SocialAuthOptions,
   StorageAdapter,
 } from './types'
+import { buildRedirectUri } from './utils'
 
 /**
  * Standalone, framework-agnostic OAuth 2.0 client. Use directly when Vue's
@@ -86,6 +87,11 @@ export class SocialAuth {
       ...options.override,
       name: options.override?.name ?? base.name ?? provider,
     } as ProviderConfig
+
+    // Resolved here, not at module load: presets carry a relative (or absent)
+    // redirectUri so that importing the library without a `window` present
+    // cannot bake an empty origin into them.
+    merged.redirectUri = buildRedirectUri(merged.redirectUri)
 
     if (!merged.clientId) {
       throw new Error(`Provider "${provider}" is missing clientId`)

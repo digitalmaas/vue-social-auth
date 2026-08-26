@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { SocialAuth } from '../../src'
-import { jsonResponse, stubFetch, stubPopupOpen } from './helpers'
+import { jsonResponse, stubFetch, stubPopupOpen, stubPopupOpenEchoingState } from './helpers'
 
 function makeAuth(overrides = {}) {
   return new SocialAuth({
@@ -11,7 +11,6 @@ function makeAuth(overrides = {}) {
         authorizationEndpoint: 'https://provider.test/auth',
         redirectUri: 'https://app.test/callback',
         url: '/api/auth/x',
-        state: 'fixed',
         ...overrides,
       },
     },
@@ -38,7 +37,8 @@ describe('integration: error propagation end-to-end', () => {
     stubPopupOpen('https://app.test/callback?code=C&state=tampered')
     const fetchMock = stubFetch(jsonResponse({}))
 
-    const pending = makeAuth().authenticate('x') // stored state = 'fixed'
+    // the popup echoes a state the library never generated
+    const pending = makeAuth().authenticate('x')
     const assertion = expect(pending).rejects.toThrow(/state mismatch/i)
     await vi.advanceTimersByTimeAsync(300)
     await vi.runAllTimersAsync()
@@ -47,7 +47,7 @@ describe('integration: error propagation end-to-end', () => {
   })
 
   it('rejects when the backend exchange returns a non-2xx response', async () => {
-    stubPopupOpen('https://app.test/callback?code=C&state=fixed')
+    stubPopupOpenEchoingState('https://app.test/callback', { code: 'C' })
     stubFetch(jsonResponse({ message: 'nope' }, 500))
 
     const pending = makeAuth().authenticate('x')

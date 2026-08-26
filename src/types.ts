@@ -34,15 +34,20 @@ export interface PopupOptions {
 /**
  * Source for the OAuth `state` parameter on a provider configuration.
  *
- * - A literal string is used as-is.
- * - A function is invoked every time `authenticate()` runs and the return
- *   value is used as the state. Useful for stamping a CSRF token bound to
- *   the current session.
- * - When omitted, the library generates a 22-char base64url random string.
+ * A function, invoked once per `authenticate()` call, whose return value is
+ * used as the state. Useful for stamping a CSRF token bound to the current
+ * session. When omitted, the library generates a 22-char base64url random
+ * string from `crypto.getRandomValues`.
+ *
+ * A constant string is deliberately **not** accepted. It would satisfy every
+ * check the library can make — stored, echoed, compared equal — while
+ * providing none of the protection `state` exists for: anyone who knows the
+ * constant can mount the login-CSRF of RFC 6819 §4.4.1.8. Supply a function
+ * if you need to control the value.
  *
  * @public
  */
-export type StateProvider = string | (() => string)
+export type StateProvider = () => string
 
 /**
  * Configuration for a single OAuth 2.0 provider.

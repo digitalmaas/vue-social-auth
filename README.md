@@ -178,6 +178,34 @@ sessionStorage being disabled.
 any preset by passing the same key in `providers`. Anything you pass is
 shallow-merged onto the preset.
 
+You can also register a provider under any key of your own — a custom key behaves
+exactly like a preset one, including `state` handling and `redirectUri` resolution.
+
+`redirectUri` may be absolute, or relative to the current origin (`/callback`).
+Omit it and the current origin is used. It is resolved when `authenticate()` runs,
+so importing the library on a server is safe.
+
+## The `state` parameter
+
+`state` is sent on every authorization request and verified on the way back — it is
+not an opt-in parameter, and listing it in `optionalUrlParams` is unnecessary. By
+default the library generates a fresh 22-character random value per flow from
+`crypto.getRandomValues`.
+
+If you need the value to be something specific (a nonce your backend issued, say),
+pass a **function**, which is called once per flow:
+
+```ts
+providers: {
+  mycorp: { clientId: '...', state: () => sessionNonceFromServer() },
+}
+```
+
+A constant string is rejected by the type system on purpose. It would pass every
+check the library can make while providing none of the protection `state` exists
+for: anyone who knows the constant can mount the login-CSRF described in
+RFC 6819 §4.4.1.8.
+
 ## API
 
 ```ts

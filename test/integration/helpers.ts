@@ -32,6 +32,29 @@ export function stubPopupOpen(redirectHref: string) {
     .mockImplementation(() => fakePopup(redirectHref) as unknown as Window)
 }
 
+/**
+ * Stub `window.open` to land on `redirectBase`, echoing back the `state` the
+ * library actually generated for this flow.
+ *
+ * Prefer this over hard-coding a state value: pinning `state` to a constant is
+ * exactly the footgun the library now rejects, and echoing it here means the
+ * real CSPRNG generation path runs in every test that completes a flow.
+ */
+export function stubPopupOpenEchoingState(
+  redirectBase: string,
+  extraParams: Record<string, string> = {},
+) {
+  return vi.spyOn(window, 'open').mockImplementation((...args: unknown[]) => {
+    const authorizeUrl = new URL(String(args[0]))
+    const redirect = new URL(redirectBase)
+    redirect.searchParams.set('state', authorizeUrl.searchParams.get('state') ?? '')
+    for (const [key, value] of Object.entries(extraParams)) {
+      redirect.searchParams.set(key, value)
+    }
+    return fakePopup(redirect.href) as unknown as Window
+  })
+}
+
 /** A real `Response` so `oauth2.ts#readJson` exercises its content-type branch. */
 export function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {

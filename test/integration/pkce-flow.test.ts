@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { jsonResponse, stubFetch, stubPopupOpen } from './helpers'
+import { jsonResponse, stubFetch, stubPopupOpenEchoingState } from './helpers'
 
 /**
  * PKCE-only flow (no backend `url`): the runner must mint a `code_verifier`,
@@ -21,7 +21,7 @@ describe('integration: PKCE direct token-endpoint exchange', () => {
     const { SocialAuth } = await import('../../src')
 
     const fetchMock = stubFetch(jsonResponse({ access_token: 'AT' }))
-    stubPopupOpen('https://app.test/callback?code=PKCE_CODE&state=fixed')
+    stubPopupOpenEchoingState('https://app.test/callback', { code: 'PKCE_CODE' })
 
     const auth = new SocialAuth({
       providers: {
@@ -31,7 +31,6 @@ describe('integration: PKCE direct token-endpoint exchange', () => {
           redirectUri: 'https://app.test/callback',
           tokenEndpoint: 'https://provider.test/token',
           pkce: true,
-          state: 'fixed',
         },
       },
     })
