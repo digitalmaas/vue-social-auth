@@ -94,6 +94,19 @@ export class SocialAuth {
     // cannot bake an empty origin into them.
     merged.redirectUri = buildRedirectUri(merged.redirectUri)
 
+    // PKCE defaults on for the direct token-endpoint flow: there the browser
+    // itself redeems the code, which makes it a public client, and
+    // draft-ietf-oauth-browser-based-apps requires PKCE for those.
+    //
+    // It is NOT defaulted on for the backend-exchange flow, because that would
+    // change a contract this library does not own — the backend must forward
+    // `codeVerifier` to the provider, and one that does not would start
+    // failing with `invalid_grant`. Opt in explicitly once your backend is
+    // ready; see "PKCE" in the README.
+    if (merged.pkce === undefined) {
+      merged.pkce = Boolean(merged.tokenEndpoint) && !merged.url
+    }
+
     if (!merged.clientId) {
       throw new SocialAuthError('config', `Provider "${provider}" is missing clientId`)
     }

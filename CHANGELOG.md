@@ -29,6 +29,16 @@ the record rather than as a migration burden.
 
 ### Changed
 
+- PKCE now defaults to **on** for the direct token-endpoint flow (`tokenEndpoint`
+  set, no `url`), where the browser redeems the code itself and is therefore a
+  public client — the case
+  [draft-ietf-oauth-browser-based-apps](https://datatracker.ietf.org/doc/html/draft-ietf-oauth-browser-based-apps)
+  is most emphatic about. It stays **off** by default for the backend-exchange
+  flow (`url`), because enabling it there changes a contract this library does
+  not own: the backend must forward `codeVerifier` to the provider, and one that
+  does not would begin failing with `invalid_grant`. Opting in is recommended
+  and documented, including the backend steps it requires. Set `pkce` explicitly
+  to override either default.
 - **Breaking:** `state` on a provider config no longer accepts a constant
   string. Pass a function (called once per flow) or omit it for a generated
   value. A constant satisfies every check the library can make while providing

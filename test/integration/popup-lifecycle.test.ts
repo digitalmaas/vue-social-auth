@@ -6,6 +6,7 @@ import {
   stubCrossOriginPopupOpen,
   stubPopupOpenEchoingState,
   useFakeClock,
+  waitForPopupOpen,
 } from './helpers'
 
 /**
@@ -34,28 +35,28 @@ describe('integration: popup lifecycle', () => {
 
   it('times out instead of polling forever when no result ever arrives', async () => {
     const { SocialAuth } = await import('../../src')
-    stubCrossOriginPopupOpen()
+    const { spy } = stubCrossOriginPopupOpen()
 
     const auth = new SocialAuth({ providers: providers({ popupTimeoutMs: 60_000 }) })
     const pending = auth.authenticate('mycorp')
     const assertion = expect(pending).rejects.toMatchObject({ code: 'timeout' })
 
-    // let the popup open (and PKCE resolve) so the deadline is actually armed
-    await vi.advanceTimersByTimeAsync(10)
+    // the deadline is armed only once the popup opens
+    await waitForPopupOpen(spy)
     await vi.advanceTimersByTimeAsync(60_001)
     await assertion
   })
 
   it('clears stored state and verifier when the flow times out', async () => {
     const { SocialAuth } = await import('../../src')
-    stubCrossOriginPopupOpen()
+    const { spy } = stubCrossOriginPopupOpen()
 
     const auth = new SocialAuth({
       providers: providers({ popupTimeoutMs: 60_000, pkce: true, tokenEndpoint: 'https://t.test' }),
     })
     const pending = auth.authenticate('mycorp')
     const assertion = expect(pending).rejects.toMatchObject({ code: 'timeout' })
-    await vi.advanceTimersByTimeAsync(10)
+    await waitForPopupOpen(spy)
     await vi.advanceTimersByTimeAsync(60_001)
     await assertion
 
@@ -64,13 +65,13 @@ describe('integration: popup lifecycle', () => {
 
   it('stops the poll interval after the flow times out', async () => {
     const { SocialAuth } = await import('../../src')
-    stubCrossOriginPopupOpen()
+    const { spy } = stubCrossOriginPopupOpen()
     const clearInterval = vi.spyOn(window, 'clearInterval')
 
     const auth = new SocialAuth({ providers: providers({ popupTimeoutMs: 60_000 }) })
     const pending = auth.authenticate('mycorp')
     const assertion = expect(pending).rejects.toMatchObject({ code: 'timeout' })
-    await vi.advanceTimersByTimeAsync(10)
+    await waitForPopupOpen(spy)
     await vi.advanceTimersByTimeAsync(60_001)
     await assertion
 

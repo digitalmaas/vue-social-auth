@@ -2,7 +2,7 @@
 
 Social OAuth 2.0 authentication for Vue 2.7+ and Vue 3.
 
-- OAuth 2.0 only — authorization code flow with optional PKCE
+- OAuth 2.0 only — authorization code flow, with PKCE on by default where the browser is the client
 - Stateless: returns the exchange response, you store it where you like (Pinia, cookie, etc.)
 - Zero HTTP dependencies — uses `window.fetch`
 - Dual Vue 2.7+ / Vue 3 via [`vue-demi`](https://github.com/vueuse/vue-demi)
@@ -111,46 +111,132 @@ exchanging the code with the provider using the client secret.
 
 ### PKCE
 
-PKCE (Proof Key for Code Exchange, RFC 7636) protects the authorization code
-from interception. Enable it by setting `pkce: true` on a provider. PKCE
-composes with either exchange flow:
+PKCE (Proof Key for Code Exchange, [RFC 7636](https://datatracker.ietf.org/doc/html/rfc7636))
+binds the authorization code to a secret only your client knows. The client mints a
+random `code_verifier`, sends only its SHA-256 hash on the authorization request, and
+presents the raw verifier when redeeming the code. An attacker who steals the code —
+from the popup's URL, browser history, a `Referer` header, a proxy log — cannot redeem
+it, because they never saw the verifier.
+
+This matters more in a browser than it might seem. The code arrives in a URL, and a URL
+is the least private thing in a browser.
+
+> **PKCE is not a substitute for `state`, and `state` is not a substitute for PKCE.**
+> `state` stops an attacker injecting _their_ code into _your_ session (login CSRF).
+> PKCE stops an attacker redeeming _your_ stolen code. This library always sends
+> `state`; PKCE is the other half.
+
+#### Defaults
+
+| Flow                  | Config                    | PKCE default | Why                                                                                                                                                                                                      |
+| --------------------- | ------------------------- | ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Direct token exchange | `tokenEndpoint`, no `url` | **on**       | The browser redeems the code itself, so it is a public client. [draft-ietf-oauth-browser-based-apps](https://datatracker.ietf.org/doc/html/draft-ietf-oauth-browser-based-apps) requires PKCE for these. |
+| Backend exchange      | `url`                     | **off**      | Enabling it changes a contract this library does not own — your backend must forward the verifier. Turning it on silently would break working logins. See below.                                         |
+
+Set `pkce` explicitly to override either default:
+
+```ts
+providers: {
+  // opt out of the default (not recommended — only if your provider rejects PKCE)
+  google: { clientId: '...', tokenEndpoint: '...', pkce: false },
+
+  // opt in for a backend-exchange provider (recommended, once your backend is ready)
+  github: { clientId: '...', url: '/api/auth/github', pkce: true },
+}
+```
+
+#### Turning PKCE on for a backend-exchange provider
+
+This is the recommended end state, and it is a **two-sided change**. Do the backend
+first. If you set `pkce: true` before the backend forwards the verifier, the provider
+will reject every exchange with `invalid_grant` and your logins will break.
+
+**1. Ship the backend change.**
+
+With `pkce: true`, the library adds one field to the JSON it POSTs to your `url`:
+
+```jsonc
+{
+  "code": "...",
+  "clientId": "...",
+  "redirectUri": "...",
+  "state": "...",
+  "codeVerifier": "dBjftJeZ4CVP...", // <- new
+}
+```
+
+Your handler must pass that value through to the provider's token endpoint as
+`code_verifier`, alongside the parameters it already sends:
+
+```js
+// POST /api/auth/github
+export async function handler(req, res) {
+  const { code, redirectUri, codeVerifier } = req.body
+
+  const response = await fetch('https://github.com/login/oauth/access_token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded', Accept: 'application/json' },
+    body: new URLSearchParams({
+      grant_type: 'authorization_code',
+      code,
+      redirect_uri: redirectUri,
+      client_id: process.env.OAUTH_CLIENT_ID,
+      client_secret: process.env.OAUTH_CLIENT_SECRET, // still required for a confidential client
+      code_verifier: codeVerifier, // <- the new part
+    }),
+  })
+
+  res.json(await response.json())
+}
+```
+
+Three things to get right:
+
+- **`redirect_uri` must match** the one used on the authorization request, exactly. The
+  library sends you the value it used, in `redirectUri` — echo that, do not rebuild it.
+- **Keep the client secret.** PKCE augments the secret for a confidential backend
+  client; it does not replace it. (For a _public_ client with no backend there is no
+  secret to send — that is the `tokenEndpoint` flow.)
+- **Accept the verifier as optional during rollout**, so the backend tolerates both old
+  and new clients while you deploy. Tighten it to required once the frontend has shipped.
+
+**2. Confirm your provider supports PKCE.** Support varies, and some providers reject
+unrecognised parameters outright. Check the provider's current OAuth documentation for
+`code_challenge` before flipping the flag — do not assume.
+
+**3. Flip `pkce: true` on the provider** and verify a real login end to end.
+
+#### Flow options in full
 
 1. **PKCE + backend exchange** (recommended for most providers). Set `url` and
-   `pkce: true`. The library generates a verifier, sends the challenge to the
-   authorization endpoint, and forwards the verifier to your backend as
-   `codeVerifier` alongside the code. Your backend swaps both with the
-   provider. This is the safest browser flow and works regardless of CORS.
+   `pkce: true`, having done the backend work above. The library generates the
+   verifier, sends the challenge to the authorization endpoint, and forwards the
+   verifier to your backend as `codeVerifier`. Your backend swaps both with the
+   provider. Safest browser flow, and works regardless of CORS.
 
-   ```ts
-   createSocialAuth({
-     providers: {
-       github: { clientId: '...', url: '/api/auth/github', pkce: true },
-     },
-   })
-   ```
-
-2. **PKCE-only, no backend** (public client). Set `pkce: true` and a
-   `tokenEndpoint` pointing at the provider's token URL. The library posts
-   `application/x-www-form-urlencoded` directly to the provider.
+2. **PKCE-only, no backend** (public client). Set a `tokenEndpoint` and the library
+   posts `application/x-www-form-urlencoded` directly to the provider. PKCE is on by
+   default here.
 
    ```ts
    createSocialAuth({
      providers: {
        google: {
          clientId: '...',
-         pkce: true,
          tokenEndpoint: 'https://oauth2.googleapis.com/token',
        },
      },
    })
    ```
 
-   **CORS caveat:** Only Google currently permits browser-direct token
-   exchange. GitHub, Facebook, and Instagram do **not** send CORS headers on
-   their token endpoints, so the browser blocks the request even when the URL
-   and verifier are correct. For those providers, use option 1 (backend
-   exchange) instead. The library does not ship default `tokenEndpoint`
-   values for the presets so the configuration choice stays explicit.
+   **CORS caveat:** Only Google currently permits browser-direct token exchange.
+   GitHub, Facebook, and Instagram do **not** send CORS headers on their token
+   endpoints, so the browser blocks the request even when the URL and verifier are
+   correct. For those providers, use option 1 instead. The library ships no default
+   `tokenEndpoint` values so the configuration choice stays explicit.
+
+Setting `pkce: true` with neither `url` nor `tokenEndpoint` is rejected up front with
+`code: 'config'`: the verifier would have nowhere to be redeemed.
 
 ## The callback page
 

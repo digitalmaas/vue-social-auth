@@ -94,7 +94,19 @@ export interface ProviderConfig {
   tokenEndpoint?: string
   /**
    * Enable PKCE (Proof Key for Code Exchange, RFC 7636, S256 method).
-   * Recommended for any public client.
+   *
+   * Defaults to `true` when `tokenEndpoint` is set and `url` is not — the
+   * browser redeems the code itself there, making it a public client, and
+   * draft-ietf-oauth-browser-based-apps requires PKCE for those.
+   *
+   * Defaults to `false` for the backend-exchange flow (`url`), because
+   * enabling it changes a contract this library does not own: your backend
+   * must forward the `codeVerifier` it receives to the provider as
+   * `code_verifier`, and one that does not would fail with `invalid_grant`.
+   * Opting in is recommended once the backend is ready — see the README.
+   *
+   * Setting this to `true` with neither `url` nor `tokenEndpoint` is rejected
+   * with a `config` error: the verifier would have nowhere to be redeemed.
    */
   pkce?: boolean
   /** OAuth scopes. */

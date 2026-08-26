@@ -24,6 +24,24 @@ export function useFakeClock(): void {
 }
 
 /**
+ * Yield until the stubbed `window.open` has actually been called.
+ *
+ * A flow does asynchronous work before it opens its popup (PKCE calls
+ * `crypto.subtle`), so advancing the clock immediately can jump past a
+ * deadline that was never armed. Waiting on the observable event instead of a
+ * fixed delay keeps such tests from depending on file order.
+ */
+export async function waitForPopupOpen(spy: { mock: { calls: unknown[] } }): Promise<void> {
+  for (let i = 0; i < 100 && spy.mock.calls.length === 0; i++) {
+    // Sequential by design: each tick must be observed before deciding whether
+    // to advance again. Promise.all would defeat the purpose.
+    // eslint-disable-next-line no-await-in-loop
+    await vi.advanceTimersByTimeAsync(1)
+  }
+  if (spy.mock.calls.length === 0) throw new Error('popup was never opened')
+}
+
+/**
  * Drive the popup poll far enough to deliver a same-origin result, then let
  * any follow-on microtasks (the token exchange) settle.
  */
