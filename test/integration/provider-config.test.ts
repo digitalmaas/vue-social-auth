@@ -136,4 +136,48 @@ describe('integration: provider config resolution', () => {
 
     expect(authorizeUrl(open).searchParams.getAll('state')).toHaveLength(1)
   })
+
+  it('rejects a pkce provider that has nowhere to redeem the verifier', async () => {
+    const { SocialAuth } = await import('../../src')
+    const open = stubPopupOpen('https://app.test/?code=C&state=ignored')
+
+    const auth = new SocialAuth({
+      providers: {
+        mycorp: {
+          clientId: 'CID',
+          authorizationEndpoint: 'https://provider.test/auth',
+          pkce: true,
+          // neither `url` nor `tokenEndpoint`
+        },
+      },
+    })
+
+    await expect(auth.authenticate('mycorp')).rejects.toMatchObject({ code: 'config' })
+    expect(open).not.toHaveBeenCalled()
+  })
+
+  it('rejects a constant state at runtime, not just in the type system', async () => {
+    const { SocialAuth } = await import('../../src')
+    const open = stubPopupOpen('https://app.test/?code=C&state=fixed')
+
+    const auth = new SocialAuth({
+      providers: {
+        mycorp: {
+          clientId: 'CID',
+          authorizationEndpoint: 'https://provider.test/auth',
+          // a plain JS caller has no type system to stop them
+          state: 'fixed' as unknown as () => string,
+        },
+      },
+    })
+
+    await expect(auth.authenticate('mycorp')).rejects.toMatchObject({ code: 'config' })
+    expect(open).not.toHaveBeenCalled()
+  })
+
+  it('reports an unknown provider as a config error', async () => {
+    const { SocialAuth } = await import('../../src')
+    const auth = new SocialAuth({})
+    await expect(auth.authenticate('nope')).rejects.toMatchObject({ code: 'config' })
+  })
 })

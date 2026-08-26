@@ -220,6 +220,12 @@ try {
 Codes: `config`, `popup_blocked`, `popup_closed`, `timeout`, `provider_error`,
 `state_mismatch`, `state_missing`, `verifier_missing`, `exchange_failed`.
 
+`config` covers everything the library can detect before opening a popup:
+an unknown provider, a missing `clientId` or `authorizationEndpoint`, a `state`
+pinned to a constant string, or `pkce: true` with neither `url` nor
+`tokenEndpoint` (the verifier would have nowhere to be redeemed). These reject
+without any popup being opened.
+
 `message` is always a fixed library string. Text supplied by the provider is
 kept out of it and exposed separately as `providerError` and
 `providerErrorDescription` (and `status` for a failed exchange), so that a value
@@ -238,6 +244,13 @@ your backend).
 createSocialAuth() // sessionStorage is used by default
 createSocialAuth({ storage: customAdapter }) // implements StorageAdapter
 ```
+
+Keys are scoped per flow, so two logins started at once (a double-clicked
+button) cannot overwrite each other. Each flow records an expiry; a later flow
+sweeps entries left behind by one that was abandoned — for example because the
+page navigated away while its popup was still open. A custom adapter opts into
+that sweep by implementing the optional `keys()` method; without it the sweep is
+simply skipped.
 
 `sessionStorage` is required. If it is unavailable (SSR, private mode in some
 browsers), the constructor throws — pass a custom `StorageAdapter` to bridge to

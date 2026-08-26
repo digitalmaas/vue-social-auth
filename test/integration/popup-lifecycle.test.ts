@@ -40,6 +40,8 @@ describe('integration: popup lifecycle', () => {
     const pending = auth.authenticate('mycorp')
     const assertion = expect(pending).rejects.toMatchObject({ code: 'timeout' })
 
+    // let the popup open (and PKCE resolve) so the deadline is actually armed
+    await vi.advanceTimersByTimeAsync(10)
     await vi.advanceTimersByTimeAsync(60_001)
     await assertion
   })
@@ -53,6 +55,7 @@ describe('integration: popup lifecycle', () => {
     })
     const pending = auth.authenticate('mycorp')
     const assertion = expect(pending).rejects.toMatchObject({ code: 'timeout' })
+    await vi.advanceTimersByTimeAsync(10)
     await vi.advanceTimersByTimeAsync(60_001)
     await assertion
 
@@ -67,6 +70,7 @@ describe('integration: popup lifecycle', () => {
     const auth = new SocialAuth({ providers: providers({ popupTimeoutMs: 60_000 }) })
     const pending = auth.authenticate('mycorp')
     const assertion = expect(pending).rejects.toMatchObject({ code: 'timeout' })
+    await vi.advanceTimersByTimeAsync(10)
     await vi.advanceTimersByTimeAsync(60_001)
     await assertion
 

@@ -58,7 +58,11 @@ function formatFeatures(g: PopupGeometry): string {
 function isCallbackMessage(data: unknown): data is CallbackMessage {
   if (typeof data !== 'object' || data === null) return false
   const candidate = data as Partial<CallbackMessage>
-  return candidate.source === CALLBACK_MESSAGE_SOURCE && typeof candidate.params === 'object'
+  if (candidate.source !== CALLBACK_MESSAGE_SOURCE) return false
+  // `typeof null === 'object'`, and an array would read `.state` as undefined:
+  // both must be rejected here or the listener throws on the next line.
+  const params: unknown = candidate.params
+  return typeof params === 'object' && params !== null && !Array.isArray(params)
 }
 
 /**
@@ -145,14 +149,30 @@ export class OAuthPopup {
         if (event.source !== this.popup) return
         if (event.origin !== expectedOrigin) return
         if (!isCallbackMessage(event.data)) return
-        if (event.data.params.state !== options.expectedState) return
-        succeed(event.data.params)
+
+        const params = event.data.params
+        // A provider that rejects the request may redirect back without
+        // echoing `state`. Source and origin already pin this message to the
+        // window we opened, so accept it rather than letting a denial sit
+        // until the timeout fires. Success still requires a state match.
+        const isUnstatedError = params.state === undefined && params.error !== undefined
+        if (!isUnstatedError && params.state !== options.expectedState) return
+
+        succeed(params)
       }
       window.addEventListener('message', onMessage)
 
       const features = formatFeatures(computeGeometry(this.options))
-      this.popup = window.open(this.url, this.name, features)
+      try {
+        this.popup = window.open(this.url, this.name, features)
+      } catch {
+        done = true
+        cleanup()
+        reject(new SocialAuthError('popup_blocked', 'OAuth popup could not be opened'))
+        return
+      }
       if (!this.popup) {
+        done = true
         cleanup()
         reject(new SocialAuthError('popup_blocked', 'OAuth popup was blocked'))
         return

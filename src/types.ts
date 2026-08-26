@@ -15,6 +15,13 @@ export interface StorageAdapter {
   setItem(key: string, value: string): void
   /** Removes `key`. No-op if the key was not present. */
   removeItem(key: string): void
+  /**
+   * Optional. Lists every key this adapter holds, without the namespace
+   * prefix. When implemented, the library uses it to sweep entries left by
+   * flows that were abandoned before they could clean up after themselves
+   * (e.g. the page navigated away while a popup was open).
+   */
+  keys?(): string[]
 }
 
 /**

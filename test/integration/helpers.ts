@@ -2,6 +2,7 @@ import { afterEach, beforeEach, vi } from 'vitest'
 import { createApp, defineComponent, h } from 'vue-demi'
 
 import type { SocialAuthPlugin } from '../../src'
+import { postAuthorizationResult } from '../../src/callback'
 
 /**
  * Fake timers plus the teardown every popup spec needs: the poll loop is
@@ -95,9 +96,56 @@ export function deliverCallbackMessage(options: {
   window.dispatchEvent(event)
 }
 
-/** The envelope `postAuthorizationResult` puts on the wire. */
+function search(value: string): string {
+  if (!value) return ''
+  return value.startsWith('?') ? value : `?${value}`
+}
+
+/**
+ * Run `body` with `window.opener`, `window.location.search` and `window.close`
+ * standing in for a callback page, restoring them afterwards.
+ *
+ * Pass an `opener` that records what it receives to inspect the posted
+ * message; `closed` reports whether the page closed itself.
+ */
+export function withStubbedCallbackWindow<T>(
+  options: { search: string; opener: unknown },
+  body: () => T,
+): { result: T; closed: boolean } {
+  let closed = false
+
+  const realOpener = Object.getOwnPropertyDescriptor(window, 'opener')
+  const realSearch = window.location.search
+  const realClose = window.close
+
+  Object.defineProperty(window, 'opener', { value: options.opener, configurable: true })
+  window.history.replaceState(null, '', `${window.location.pathname}${search(options.search)}`)
+  window.close = () => void (closed = true)
+
+  try {
+    const result = body()
+    return { result, closed }
+  } finally {
+    if (realOpener) Object.defineProperty(window, 'opener', realOpener)
+    else Object.defineProperty(window, 'opener', { value: null, configurable: true })
+    window.history.replaceState(null, '', `${window.location.pathname}${realSearch}`)
+    window.close = realClose
+  }
+}
+
+/**
+ * The envelope `postAuthorizationResult` puts on the wire — produced by the
+ * real callback helper rather than hand-written, so the two halves of the
+ * protocol cannot drift apart.
+ */
 export function callbackEnvelope(params: Record<string, string>) {
-  return { source: 'vue-social-auth', params }
+  let captured: unknown
+  const opener = { postMessage: (message: unknown) => void (captured = message) }
+
+  withStubbedCallbackWindow({ search: new URLSearchParams(params).toString(), opener }, () =>
+    postAuthorizationResult({ targetOrigin: 'https://parent.test' }),
+  )
+  return captured
 }
 
 /** Stub `window.open` to land on `redirectHref`. Returns the spy. */

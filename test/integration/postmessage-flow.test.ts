@@ -144,4 +144,54 @@ describe('integration: postMessage callback channel', () => {
       }),
     ).not.toThrow()
   })
+
+  it('surfaces a provider denial that omits state, instead of timing out', async () => {
+    const { pending, popup } = await startFlow()
+
+    // some providers drop `state` on the error redirect; source and origin
+    // already pin the message to the window we opened
+    deliverCallbackMessage({
+      data: { source: 'vue-social-auth', params: { error: 'access_denied' } },
+      origin: CALLBACK_ORIGIN,
+      source: popup,
+    })
+
+    await expect(pending).rejects.toMatchObject({
+      code: 'provider_error',
+      providerError: 'access_denied',
+    })
+  })
+
+  it('still requires a state match for a successful result', async () => {
+    const { pending, popup } = await startFlow()
+
+    deliverCallbackMessage({
+      data: { source: 'vue-social-auth', params: { code: 'NO_STATE' } },
+      origin: CALLBACK_ORIGIN,
+      source: popup,
+    })
+
+    expect(await settled(pending)).toBe(false)
+    pending.catch(() => undefined)
+  })
+
+  it('ignores an envelope whose params are null instead of crashing the listener', async () => {
+    const { pending, popup, state } = await startFlow()
+
+    deliverCallbackMessage({
+      data: { source: 'vue-social-auth', params: null },
+      origin: CALLBACK_ORIGIN,
+      source: popup,
+    })
+
+    expect(await settled(pending)).toBe(false)
+
+    // and a well-formed message still works afterwards
+    deliverCallbackMessage({
+      data: callbackEnvelope({ code: 'GOOD', state }),
+      origin: CALLBACK_ORIGIN,
+      source: popup,
+    })
+    await expect(pending).resolves.toMatchObject({ code: 'GOOD' })
+  })
 })

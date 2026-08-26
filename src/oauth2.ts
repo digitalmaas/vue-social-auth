@@ -2,6 +2,7 @@ import { SocialAuthError } from './errors'
 import { buildAuthorizationQuery } from './options'
 import { createPkcePair } from './pkce'
 import { OAuthPopup } from './popup'
+import { flowKeys, sweepExpiredFlows } from './storage'
 import type {
   AuthenticateResult,
   AuthorizationResponse,
@@ -9,6 +10,9 @@ import type {
   StorageAdapter,
 } from './types'
 import { encodeForm, isFunction, randomString } from './utils'
+
+/** Kept in step with the popup's own default. */
+const DEFAULT_POPUP_TIMEOUT_MS = 300_000
 
 export interface OAuth2RunnerOptions {
   withCredentials: boolean
@@ -25,12 +29,8 @@ export class OAuth2Runner {
     const name = this.providerConfig.name ?? 'oauth2'
     const state = this.resolveState()
 
-    // Keys are scoped by the flow's own state, not just the provider name:
-    // two concurrent authenticate() calls for one provider would otherwise
-    // overwrite each other's entries, and the first to return would fail
-    // verification against the second's state.
-    const stateKey = `${name}.${state}.state`
-    const verifierKey = `${name}.${state}.verifier`
+    const keys = flowKeys(name, state)
+    const { state: stateKey, verifier: verifierKey } = keys
 
     // Generate the PKCE pair BEFORE writing anything: crypto.subtle throws in
     // a non-secure context, and a flow that cannot start must leave no trace.
@@ -45,26 +45,37 @@ export class OAuth2Runner {
     const clear = (): void => {
       this.storage.removeItem(stateKey)
       this.storage.removeItem(verifierKey)
+      this.storage.removeItem(keys.expiry)
     }
 
+    const timeoutMs = this.providerConfig.popupTimeoutMs ?? DEFAULT_POPUP_TIMEOUT_MS
+    // Collect anything left by flows that were abandoned before they could
+    // clean up. Live concurrent flows have a future expiry and are untouched.
+    sweepExpiredFlows(this.storage, name, Date.now())
+
     this.storage.setItem(stateKey, state)
+    this.storage.setItem(keys.expiry, String(Date.now() + timeoutMs))
     if (verifierValue !== undefined) this.storage.setItem(verifierKey, verifierValue)
 
     let response: AuthorizationResponse
     try {
       const query = buildAuthorizationQuery(this.providerConfig, state, challenge)
       const url = `${this.providerConfig.authorizationEndpoint}?${query}`
-      const popup = new OAuthPopup(url, name, this.providerConfig.popupOptions ?? {})
+      // The window name must be unique per flow. A shared name makes the
+      // browser re-navigate the existing popup, so two concurrent flows would
+      // fight over one window.
+      const popup = new OAuthPopup(url, `${name}.${state}`, this.providerConfig.popupOptions ?? {})
       response = await popup.open({
         redirectUri: this.providerConfig.redirectUri ?? '',
         expectedState: state,
-        timeoutMs: this.providerConfig.popupTimeoutMs,
+        timeoutMs,
       })
     } catch (err) {
       clear()
       throw err
     }
 
+    this.storage.removeItem(keys.expiry)
     const storedState = this.takeItem(stateKey)
     if (!storedState) {
       this.storage.removeItem(verifierKey)

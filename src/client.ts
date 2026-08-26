@@ -1,3 +1,4 @@
+import { SocialAuthError } from './errors'
 import { OAuth2Runner } from './oauth2'
 import { defaultOptions, defaultProviderConfig, providerPresets } from './options'
 import { createStorage } from './storage'
@@ -79,7 +80,7 @@ export class SocialAuth {
     options: AuthenticateOptions = {},
   ): Promise<AuthenticateResult> {
     const base = this.providers[provider]
-    if (!base) throw new Error(`Unknown OAuth provider: ${provider}`)
+    if (!base) throw new SocialAuthError('config', `Unknown OAuth provider: ${provider}`)
 
     const merged = {
       ...defaultProviderConfig,
@@ -94,10 +95,26 @@ export class SocialAuth {
     merged.redirectUri = buildRedirectUri(merged.redirectUri)
 
     if (!merged.clientId) {
-      throw new Error(`Provider "${provider}" is missing clientId`)
+      throw new SocialAuthError('config', `Provider "${provider}" is missing clientId`)
     }
     if (!merged.authorizationEndpoint) {
-      throw new Error(`Provider "${provider}" is missing authorizationEndpoint`)
+      throw new SocialAuthError('config', `Provider "${provider}" is missing authorizationEndpoint`)
+    }
+    if (typeof merged.state === 'string') {
+      throw new SocialAuthError(
+        'config',
+        `Provider "${provider}" sets \`state\` to a constant string. Pass a function ` +
+          '(called once per flow), or omit it for a generated value.',
+      )
+    }
+    // PKCE with nowhere to redeem the verifier: the flow would hand back a
+    // code whose verifier this library has already consumed and destroyed.
+    if (merged.pkce && !merged.url && !merged.tokenEndpoint) {
+      throw new SocialAuthError(
+        'config',
+        `Provider "${provider}" enables pkce but sets neither \`url\` nor \`tokenEndpoint\`, ` +
+          'so the code_verifier could never be exchanged.',
+      )
     }
 
     const runner = new OAuth2Runner(this.storage, merged, {

@@ -54,14 +54,10 @@ export class SocialAuthError extends Error {
       providerError?: string
       providerErrorDescription?: string
       status?: number
-      cause?: unknown
     } = {},
   ) {
     super(message)
     this.name = 'SocialAuthError'
-    // Assigned rather than passed to super(): `cause` on the Error constructor
-    // is ES2022, and this package targets ES2020.
-    if (details.cause !== undefined) (this as { cause?: unknown }).cause = details.cause
     this.code = code
     this.providerError = details.providerError
     this.providerErrorDescription = details.providerErrorDescription

@@ -5,6 +5,17 @@ class SessionStorageAdapter implements StorageAdapter {
   private key(key: string): string {
     return this.prefix ? `${this.prefix}.${key}` : key
   }
+  keys(): string[] {
+    const scope = this.prefix ? `${this.prefix}.` : ''
+    const out: string[] = []
+    for (let i = 0; i < window.sessionStorage.length; i++) {
+      const key = window.sessionStorage.key(i)
+      if (key === null) continue
+      if (scope && !key.startsWith(scope)) continue
+      out.push(scope ? key.slice(scope.length) : key)
+    }
+    return out
+  }
   getItem(key: string): string | null {
     return window.sessionStorage.getItem(this.key(key))
   }
@@ -58,4 +69,56 @@ export function createStorage(
     )
   }
   return new SessionStorageAdapter(namespace)
+}
+
+/**
+ * Storage keys for one flow. Scoped by the flow's `state` as well as the
+ * provider name so that two concurrent flows for one provider cannot overwrite
+ * each other's entries.
+ *
+ * @param provider - Provider name.
+ * @param state - The `state` value identifying this flow.
+ */
+export function flowKeys(
+  provider: string,
+  state: string,
+): { state: string; verifier: string; expiry: string } {
+  return {
+    state: `${provider}.${state}.state`,
+    verifier: `${provider}.${state}.verifier`,
+    expiry: `${provider}.${state}.exp`,
+  }
+}
+
+const EXPIRY_SUFFIX = '.exp'
+
+/**
+ * Remove entries left behind by flows that can no longer complete.
+ *
+ * Keys are scoped per flow so concurrent flows cannot collide, which means an
+ * abandoned flow (the opener navigated away while its popup was open) leaves
+ * entries nothing would otherwise collect. Each flow records an expiry, and
+ * only flows past it are swept — a live concurrent flow is never touched.
+ *
+ * A no-op for custom adapters that do not implement `keys()`.
+ *
+ * @param storage - The adapter to sweep.
+ * @param provider - Only sweep flows belonging to this provider.
+ * @param now - Current epoch milliseconds.
+ */
+export function sweepExpiredFlows(storage: StorageAdapter, provider: string, now: number): void {
+  const all = storage.keys?.()
+  if (!all) return
+
+  for (const key of all) {
+    if (!key.startsWith(`${provider}.`) || !key.endsWith(EXPIRY_SUFFIX)) continue
+    const expiry = Number(storage.getItem(key))
+    if (Number.isFinite(expiry) && expiry > now) continue
+
+    const state = key.slice(provider.length + 1, -EXPIRY_SUFFIX.length)
+    const keys = flowKeys(provider, state)
+    storage.removeItem(keys.state)
+    storage.removeItem(keys.verifier)
+    storage.removeItem(keys.expiry)
+  }
 }

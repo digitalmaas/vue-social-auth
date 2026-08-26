@@ -19,11 +19,6 @@ export interface PostAuthorizationResultOptions {
    * because only you know which app origin is legitimate.
    */
   targetOrigin: string
-  /**
-   * Close the popup after posting.
-   * @defaultValue `true`
-   */
-  close?: boolean
 }
 
 /**
@@ -53,6 +48,14 @@ export interface PostAuthorizationResultOptions {
 export function postAuthorizationResult(options: PostAuthorizationResultOptions): void {
   if (typeof window === 'undefined') return
 
+  if (!/^https?:\/\/[^/]+$/.test(options.targetOrigin)) {
+    throw new Error(
+      `[vue-social-auth] postAuthorizationResult: targetOrigin must be an exact origin ` +
+        `like "https://app.example.com", got ${JSON.stringify(options.targetOrigin)}. ` +
+        'A wildcard would hand the authorization code to any origin.',
+    )
+  }
+
   const opener = window.opener as Window | null
   if (!opener) {
     throw new Error(
@@ -66,6 +69,5 @@ export function postAuthorizationResult(options: PostAuthorizationResultOptions)
     params: parseQuery(window.location.search),
   }
   opener.postMessage(message, options.targetOrigin)
-
-  if (options.close !== false) window.close()
+  window.close()
 }

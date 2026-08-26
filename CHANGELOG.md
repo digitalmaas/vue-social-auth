@@ -43,6 +43,26 @@ the record rather than as a migration burden.
 
 ### Fixed
 
+- Every pre-flight configuration failure now throws `SocialAuthError` with code
+  `config` rather than a plain `Error`, including two cases that were not
+  detected at all: a `state` pinned to a constant string (a JS caller has no
+  type system to stop them) and `pkce: true` with neither `url` nor
+  `tokenEndpoint`, which would have destroyed the verifier and returned a code
+  that could never be exchanged.
+- A `postMessage` envelope whose `params` was `null` threw out of the message
+  listener and left the flow to hang until the timeout.
+- A provider denial that omits `state` on the error redirect is now surfaced
+  immediately instead of sitting until the timeout.
+- The popup window name is per-flow. It was the provider name, so a second
+  concurrent flow re-navigated the first flow's popup instead of opening its
+  own.
+- `window.open` throwing (rather than returning `null`) left the message
+  listener attached.
+- `postAuthorizationResult` rejects a `targetOrigin` that is not an exact
+  origin, so `'*'` cannot be passed by accident.
+- Abandoned flows no longer leak `sessionStorage` entries: because keys are
+  scoped per flow, nothing would otherwise collect them. Each flow records an
+  expiry and later flows sweep expired ones.
 - A custom (non-preset) provider key never sent a `state` parameter, so every
   flow failed verification with "OAuth state mismatch — possible CSRF". `state`
   is now sent unconditionally for every provider.
