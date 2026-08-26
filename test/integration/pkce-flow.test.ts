@@ -1,6 +1,12 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 
-import { jsonResponse, stubFetch, stubPopupOpenEchoingState } from './helpers'
+import {
+  drivePopupPoll,
+  jsonResponse,
+  stubFetch,
+  stubPopupOpenEchoingState,
+  useFakeClock,
+} from './helpers'
 
 /**
  * PKCE-only flow (no backend `url`): the runner must mint a `code_verifier`,
@@ -9,12 +15,7 @@ import { jsonResponse, stubFetch, stubPopupOpenEchoingState } from './helpers'
  * poll; only `window.open` and `fetch` are mocked.
  */
 describe('integration: PKCE direct token-endpoint exchange', () => {
-  beforeEach(() => vi.useFakeTimers())
-  afterEach(() => {
-    vi.useRealTimers()
-    vi.restoreAllMocks()
-    vi.unstubAllGlobals()
-  })
+  useFakeClock()
 
   it('sends grant_type, code and a code_verifier to the tokenEndpoint', async () => {
     // import inside the test so happy-dom's crypto is ready for createPkcePair
@@ -36,8 +37,7 @@ describe('integration: PKCE direct token-endpoint exchange', () => {
     })
 
     const pending = auth.authenticate('x')
-    await vi.advanceTimersByTimeAsync(300)
-    await vi.runAllTimersAsync()
+    await drivePopupPoll()
     const result = await pending
 
     expect(fetchMock).toHaveBeenCalledOnce()

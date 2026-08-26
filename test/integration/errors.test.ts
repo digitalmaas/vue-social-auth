@@ -1,7 +1,14 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import { SocialAuth } from '../../src'
-import { jsonResponse, stubFetch, stubPopupOpen, stubPopupOpenEchoingState } from './helpers'
+import {
+  drivePopupPoll,
+  jsonResponse,
+  stubFetch,
+  stubPopupOpen,
+  stubPopupOpenEchoingState,
+  useFakeClock,
+} from './helpers'
 
 function makeAuth(overrides = {}) {
   return new SocialAuth({
@@ -18,12 +25,7 @@ function makeAuth(overrides = {}) {
 }
 
 describe('integration: error propagation end-to-end', () => {
-  beforeEach(() => vi.useFakeTimers())
-  afterEach(() => {
-    vi.useRealTimers()
-    vi.restoreAllMocks()
-    vi.unstubAllGlobals()
-  })
+  useFakeClock()
 
   it('rejects when the popup is blocked', async () => {
     vi.spyOn(window, 'open').mockReturnValue(null)
@@ -40,8 +42,7 @@ describe('integration: error propagation end-to-end', () => {
     // the popup echoes a state the library never generated
     const pending = makeAuth().authenticate('x')
     const assertion = expect(pending).rejects.toThrow(/state mismatch/i)
-    await vi.advanceTimersByTimeAsync(300)
-    await vi.runAllTimersAsync()
+    await drivePopupPoll()
     await assertion
     expect(fetchMock).not.toHaveBeenCalled()
   })
@@ -55,8 +56,7 @@ describe('integration: error propagation end-to-end', () => {
       code: 'exchange_failed',
       status: 500,
     })
-    await vi.advanceTimersByTimeAsync(300)
-    await vi.runAllTimersAsync()
+    await drivePopupPoll()
     await assertion
   })
 
@@ -78,8 +78,7 @@ describe('integration: error propagation end-to-end', () => {
       providerError: 'access_denied',
       providerErrorDescription: '<img onerror=alert(1)>',
     })
-    await vi.advanceTimersByTimeAsync(300)
-    await vi.runAllTimersAsync()
+    await drivePopupPoll()
     await assertion
     expect(fetchMock).not.toHaveBeenCalled()
 

@@ -23,10 +23,14 @@ export class OAuth2Runner {
 
   async run(userData?: Record<string, unknown>): Promise<AuthenticateResult> {
     const name = this.providerConfig.name ?? 'oauth2'
-    const stateKey = `${name}.state`
-    const verifierKey = `${name}.verifier`
-
     const state = this.resolveState()
+
+    // Keys are scoped by the flow's own state, not just the provider name:
+    // two concurrent authenticate() calls for one provider would otherwise
+    // overwrite each other's entries, and the first to return would fail
+    // verification against the second's state.
+    const stateKey = `${name}.${state}.state`
+    const verifierKey = `${name}.${state}.verifier`
 
     // Generate the PKCE pair BEFORE writing anything: crypto.subtle throws in
     // a non-secure context, and a flow that cannot start must leave no trace.
@@ -120,36 +124,42 @@ export class OAuth2Runner {
     if (response.state) body.state = response.state
     if (verifier) body.codeVerifier = verifier
 
-    const res = await fetch(this.providerConfig.url!, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+    return postForJson(this.providerConfig.url!, {
+      contentType: 'application/json',
       body: JSON.stringify(body),
       credentials: this.options.withCredentials ? 'include' : 'same-origin',
     })
-    return readJson(res)
   }
 
   private async exchangeWithProvider(
     response: AuthorizationResponse,
     verifier: string,
   ): Promise<AuthenticateResult> {
-    const body = encodeForm({
-      grant_type: 'authorization_code',
-      code: response.code,
-      client_id: this.providerConfig.clientId,
-      redirect_uri: this.providerConfig.redirectUri ?? '',
-      code_verifier: verifier,
+    return postForJson(this.providerConfig.tokenEndpoint!, {
+      contentType: 'application/x-www-form-urlencoded',
+      body: encodeForm({
+        grant_type: 'authorization_code',
+        code: response.code,
+        client_id: this.providerConfig.clientId,
+        redirect_uri: this.providerConfig.redirectUri ?? '',
+        code_verifier: verifier,
+      }),
     })
-    const res = await fetch(this.providerConfig.tokenEndpoint!, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        Accept: 'application/json',
-      },
-      body,
-    })
-    return readJson(res)
   }
+}
+
+/** POST an exchange request and parse the response. Shared by both flows. */
+async function postForJson(
+  url: string,
+  init: { contentType: string; body: string; credentials?: RequestCredentials },
+): Promise<Record<string, unknown>> {
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': init.contentType, Accept: 'application/json' },
+    body: init.body,
+    ...(init.credentials ? { credentials: init.credentials } : {}),
+  })
+  return readJson(res)
 }
 
 async function readJson(res: Response): Promise<Record<string, unknown>> {

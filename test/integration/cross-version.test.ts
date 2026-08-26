@@ -1,8 +1,15 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { isVue2 } from 'vue-demi'
 
 import { createSocialAuth, useSocialAuth, type SocialAuth } from '../../src'
-import { jsonResponse, mountWithPlugin, stubFetch, stubPopupOpenEchoingState } from './helpers'
+import {
+  drivePopupPoll,
+  jsonResponse,
+  mountWithPlugin,
+  stubFetch,
+  stubPopupOpenEchoingState,
+  useFakeClock,
+} from './helpers'
 
 /**
  * Version-portable integration test. Imports Vue through `vue-demi`, so this
@@ -16,12 +23,7 @@ import { jsonResponse, mountWithPlugin, stubFetch, stubPopupOpenEchoingState } f
  *   `Vue.prototype.$socialAuth`, composable falls back to the global property.
  */
 describe(`integration: cross-version plugin + composable (isVue2=${isVue2})`, () => {
-  beforeEach(() => vi.useFakeTimers())
-  afterEach(() => {
-    vi.useRealTimers()
-    vi.restoreAllMocks()
-    vi.unstubAllGlobals()
-  })
+  useFakeClock()
 
   it('resolves the instance via useSocialAuth() and authenticates end-to-end', async () => {
     const fetchMock = stubFetch(jsonResponse({ token: 'JWT' }))
@@ -47,8 +49,7 @@ describe(`integration: cross-version plugin + composable (isVue2=${isVue2})`, ()
     // composable must hand back the same instance the plugin wraps
     expect(resolved).toBe(plugin.instance)
 
-    await vi.advanceTimersByTimeAsync(300)
-    await vi.runAllTimersAsync()
+    await drivePopupPoll()
     const result = await pending
 
     expect(fetchMock).toHaveBeenCalledOnce()

@@ -10,12 +10,6 @@ export function camelCase(name: string): string {
   return name.replace(/[-_](\w)/g, (_, c: string) => c.toUpperCase())
 }
 
-export function joinUrl(base: string | null | undefined, path: string): string {
-  if (!base) return path
-  if (/^https?:\/\//i.test(path)) return path
-  return `${base.replace(/\/+$/, '')}/${path.replace(/^\/+/, '')}`
-}
-
 export function getOrigin(): string {
   return typeof window !== 'undefined' && window.location ? window.location.origin : ''
 }

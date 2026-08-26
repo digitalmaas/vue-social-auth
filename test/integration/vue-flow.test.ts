@@ -1,9 +1,15 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 // imports the v3 alias directly (this spec is Vue-3-only; excluded from the v2 run)
 import { createApp, defineComponent, h } from 'vue3'
 
 import { createSocialAuth, useSocialAuth } from '../../src'
-import { jsonResponse, stubFetch, stubPopupOpenEchoingState } from './helpers'
+import {
+  drivePopupPoll,
+  jsonResponse,
+  stubFetch,
+  stubPopupOpenEchoingState,
+  useFakeClock,
+} from './helpers'
 
 /**
  * End-to-end through the public API: Vue plugin install → `useSocialAuth`
@@ -11,12 +17,7 @@ import { jsonResponse, stubFetch, stubPopupOpenEchoingState } from './helpers'
  * exchange. Only the two true I/O seams are mocked: `window.open` and `fetch`.
  */
 describe('integration: Vue plugin → composable → backend exchange', () => {
-  beforeEach(() => vi.useFakeTimers())
-  afterEach(() => {
-    vi.useRealTimers()
-    vi.restoreAllMocks()
-    vi.unstubAllGlobals()
-  })
+  useFakeClock()
 
   it('authenticates via the real popup poll and posts the code to the backend url', async () => {
     const fetchMock = stubFetch(jsonResponse({ token: 'JWT' }))
@@ -45,8 +46,7 @@ describe('integration: Vue plugin → composable → backend exchange', () => {
     app.mount(document.createElement('div'))
 
     // popup poll runs on setInterval(POLL_INTERVAL_MS = 250)
-    await vi.advanceTimersByTimeAsync(300)
-    await vi.runAllTimersAsync()
+    await drivePopupPoll()
     const result = await pending
 
     expect(open).toHaveBeenCalledOnce()
@@ -85,8 +85,7 @@ describe('integration: Vue plugin → composable → backend exchange', () => {
     const pending = plugin.instance.authenticate('google', {
       userData: { invitedBy: 'abc' },
     })
-    await vi.advanceTimersByTimeAsync(300)
-    await vi.runAllTimersAsync()
+    await drivePopupPoll()
     await pending
 
     const [, opts] = fetchMock.mock.calls[0] as [string, RequestInit]
@@ -109,8 +108,7 @@ describe('integration: Vue plugin → composable → backend exchange', () => {
     }).instance
 
     const pending = auth.authenticate('plain')
-    await vi.advanceTimersByTimeAsync(300)
-    await vi.runAllTimersAsync()
+    await drivePopupPoll()
     const result = await pending
 
     expect(fetchMock).not.toHaveBeenCalled()

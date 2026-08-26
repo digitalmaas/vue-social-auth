@@ -1,6 +1,11 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
-import { callbackEnvelope, deliverCallbackMessage, stubCrossOriginPopupOpen } from './helpers'
+import {
+  callbackEnvelope,
+  deliverCallbackMessage,
+  stubCrossOriginPopupOpen,
+  useFakeClock,
+} from './helpers'
 
 /** Has the promise settled? Never awaits it, so an unsettled flow is safe. */
 function settled(promise: Promise<unknown>): Promise<boolean> {
@@ -23,12 +28,7 @@ function settled(promise: Promise<unknown>): Promise<boolean> {
  * passing check mask three broken ones.
  */
 describe('integration: postMessage callback channel', () => {
-  beforeEach(() => vi.useFakeTimers())
-  afterEach(() => {
-    vi.useRealTimers()
-    vi.restoreAllMocks()
-    vi.unstubAllGlobals()
-  })
+  useFakeClock()
 
   const CALLBACK_ORIGIN = 'https://auth.example.test'
 

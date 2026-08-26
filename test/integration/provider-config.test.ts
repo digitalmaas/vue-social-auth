@@ -1,6 +1,6 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
-import { stubPopupOpen } from './helpers'
+import { stubPopupOpen, useFakeClock } from './helpers'
 
 /**
  * Provider-configuration resolution, observed at the only place it is
@@ -18,12 +18,7 @@ function authorizeUrl(spy: ReturnType<typeof stubPopupOpen>): URL {
 }
 
 describe('integration: provider config resolution', () => {
-  beforeEach(() => vi.useFakeTimers())
-  afterEach(() => {
-    vi.useRealTimers()
-    vi.restoreAllMocks()
-    vi.unstubAllGlobals()
-  })
+  useFakeClock()
 
   it('sends state for a custom provider key with no preset behind it', async () => {
     const { SocialAuth } = await import('../../src')

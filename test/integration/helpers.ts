@@ -1,7 +1,35 @@
-import { vi } from 'vitest'
+import { afterEach, beforeEach, vi } from 'vitest'
 import { createApp, defineComponent, h } from 'vue-demi'
 
 import type { SocialAuthPlugin } from '../../src'
+
+/**
+ * Fake timers plus the teardown every popup spec needs: the poll loop is
+ * driven by `setInterval`, and mocks/globals must be restored between tests or
+ * a stubbed `window.open` leaks into the next one.
+ *
+ * Call once at the top of a `describe`.
+ */
+export function useFakeClock(): void {
+  beforeEach(() => {
+    vi.useFakeTimers()
+    window.sessionStorage.clear()
+  })
+  afterEach(() => {
+    vi.useRealTimers()
+    vi.restoreAllMocks()
+    vi.unstubAllGlobals()
+  })
+}
+
+/**
+ * Drive the popup poll far enough to deliver a same-origin result, then let
+ * any follow-on microtasks (the token exchange) settle.
+ */
+export async function drivePopupPoll(): Promise<void> {
+  await vi.advanceTimersByTimeAsync(300)
+  await vi.runAllTimersAsync()
+}
 
 /**
  * Fake popup Window driven to a fixed redirect URL. `popup.ts` polls

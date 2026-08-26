@@ -12,10 +12,7 @@
     "isolatedModules": true,
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
-    "declaration": true,
-    "declarationMap": true,
-    "sourceMap": true,
-    "outDir": "dist"
+    "noEmit": true
   },
   "include": ["src/**/*", "test/**/*"]
 }

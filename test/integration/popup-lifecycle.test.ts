@@ -1,10 +1,11 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import {
   callbackEnvelope,
   deliverCallbackMessage,
   stubCrossOriginPopupOpen,
   stubPopupOpenEchoingState,
+  useFakeClock,
 } from './helpers'
 
 /**
@@ -16,12 +17,7 @@ import {
  * interval polled for the life of the tab.
  */
 describe('integration: popup lifecycle', () => {
-  beforeEach(() => vi.useFakeTimers())
-  afterEach(() => {
-    vi.useRealTimers()
-    vi.restoreAllMocks()
-    vi.unstubAllGlobals()
-  })
+  useFakeClock()
 
   const CALLBACK_ORIGIN = 'https://auth.example.test'
 
