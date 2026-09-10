@@ -10,6 +10,12 @@ const shared = {
   format: ['esm', 'umd'] as const,
   platform: 'browser' as const,
   target: 'es2020',
+  // The package is `"type": "module"`, so the UMD bundle must NOT be a `.js`
+  // file: Node would parse it as ESM and the UMD factory's exports never
+  // bind — require() then yields an empty object.
+  // (tsdown already inserts `.umd` before the extension for UMD outputs.)
+  outExtensions: ({ format }: { format: string }) =>
+    format === 'umd' ? { js: '.cjs' } : undefined,
   dts: true,
   sourcemap: true,
   treeshake: true,

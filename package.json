@@ -40,23 +40,23 @@
   ],
   "type": "module",
   "sideEffects": false,
-  "main": "./dist/index.umd.js",
+  "main": "./dist/index.umd.cjs",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
-  "unpkg": "./dist/index.umd.js",
-  "jsdelivr": "./dist/index.umd.js",
+  "unpkg": "./dist/index.umd.cjs",
+  "jsdelivr": "./dist/index.umd.cjs",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
-      "require": "./dist/index.umd.js",
-      "default": "./dist/index.umd.js"
+      "require": "./dist/index.umd.cjs",
+      "default": "./dist/index.umd.cjs"
     },
     "./callback": {
       "types": "./dist/callback.d.ts",
       "import": "./dist/callback.js",
-      "require": "./dist/callback.umd.js",
-      "default": "./dist/callback.umd.js"
+      "require": "./dist/callback.umd.cjs",
+      "default": "./dist/callback.umd.cjs"
     },
     "./package.json": "./package.json"
   },
