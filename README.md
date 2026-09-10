@@ -393,9 +393,11 @@ neither is set, returns the raw `{ code, state }` from the popup.
 
 ## Build
 
-- `npm run build` — emits ESM (`dist/index.js`), UMD (`dist/index.umd.js`), and
+- `npm run build` — emits ESM (`dist/index.js`), UMD (`dist/index.umd.cjs`), and
   `.d.ts` via [tsdown](https://tsdown.dev/) (Rolldown + Oxc). The callback entry
-  point is built separately as `dist/callback.js` / `dist/callback.umd.js`.
+  point is built separately as `dist/callback.js` / `dist/callback.umd.cjs`. The
+  UMD bundles use `.cjs` because the package is `"type": "module"` — as `.js`
+  they would be parsed as ESM and `require()` would yield an empty object.
 - `npm test` — runs vitest with happy-dom, against both Vue 2.7 and Vue 3.
 - `npm run check` — runs `oxlint`, `oxfmt --check`, and `tsc --noEmit`.
 

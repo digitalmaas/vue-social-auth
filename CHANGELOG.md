@@ -49,6 +49,15 @@ the record rather than as a migration burden.
   than at module load, so importing the library without a `window` no longer
   bakes an empty origin into every preset.
 
+### Removed
+
+- The `$auth` Vue prototype property from the base libraries. Use
+  `useSocialAuth()` in `setup()`, or the `$socialAuth` global property the
+  plugin registers.
+- The `twitter`, `bitbucket`, `linkedin`, and `live` provider presets.
+  Configure such providers under a custom key with their endpoints spelled
+  out.
+
 ### Fixed
 
 - Every pre-flight configuration failure now throws `SocialAuthError` with code
