@@ -87,9 +87,9 @@ export interface ProviderConfig {
    */
   url?: string
   /**
-   * Provider's token endpoint. Used when `pkce: true` is set and `url` is
-   * not — the library posts `application/x-www-form-urlencoded` directly to
-   * the provider. Subject to CORS on the provider side.
+   * Provider's token endpoint. Used when set and `url` is not — the library
+   * posts `application/x-www-form-urlencoded` directly to the provider (with
+   * PKCE by default; see `pkce`). Subject to CORS on the provider side.
    */
   tokenEndpoint?: string
   /**
@@ -229,8 +229,8 @@ export interface AuthorizationResponse {
  *
  * - When `providers[name].url` is set, this is the parsed JSON returned by
  *   your backend exchange endpoint.
- * - When `pkce: true` is set with a `tokenEndpoint` and no `url`, this is
- *   the provider's token response.
+ * - When `tokenEndpoint` is set and no `url`, this is the provider's token
+ *   response.
  * - When neither is set, this is the raw {@link AuthorizationResponse} from
  *   the popup so the caller can complete the exchange on its own terms.
  *

@@ -2,10 +2,6 @@ export function isFunction(value: unknown): value is (...args: unknown[]) => unk
   return typeof value === 'function'
 }
 
-export function isString(value: unknown): value is string {
-  return typeof value === 'string'
-}
-
 export function camelCase(name: string): string {
   return name.replace(/[-_](\w)/g, (_, c: string) => c.toUpperCase())
 }
@@ -17,28 +13,16 @@ export function getOrigin(): string {
 export function buildRedirectUri(uri?: string): string {
   const origin = getOrigin()
   if (!uri) return origin
-  if (/^https?:\/\//i.test(uri)) return uri
-  return `${origin}${uri.startsWith('/') ? '' : '/'}${uri}`
+  if (!origin) return uri
+  // Resolve through the URL API so this agrees byte-for-byte with the popup's
+  // own resolution of the same field (origin + pathname matching).
+  return new URL(uri, origin).href
 }
 
 export function parseQuery(query: string): Record<string, string> {
-  const out: Record<string, string> = {}
-  const search = query.replace(/^[?#]/, '')
-  if (!search) return out
-  for (const pair of search.split('&')) {
-    if (!pair) continue
-    const idx = pair.indexOf('=')
-    const key = idx === -1 ? pair : pair.slice(0, idx)
-    const value = idx === -1 ? '' : pair.slice(idx + 1)
-    out[decodeURIComponent(key)] = decodeURIComponent(value.replace(/\+/g, ' '))
-  }
-  return out
-}
-
-export function encodeForm(data: Record<string, string>): string {
-  return Object.keys(data)
-    .map((k) => `${encodeURIComponent(k)}=${encodeURIComponent(data[k] ?? '')}`)
-    .join('&')
+  // URLSearchParams tolerates a malformed percent-escape (a stray `%`), where
+  // decodeURIComponent would throw URIError out of the popup poll loop.
+  return Object.fromEntries(new URLSearchParams(query.replace(/^[?#]/, '')))
 }
 
 export function randomString(length = 32): string {

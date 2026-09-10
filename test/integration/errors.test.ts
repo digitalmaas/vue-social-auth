@@ -8,6 +8,7 @@ import {
   stubPopupOpen,
   stubPopupOpenEchoingState,
   useFakeClock,
+  waitForPopupOpen,
 } from './helpers'
 
 function makeAuth(overrides = {}) {
@@ -36,12 +37,20 @@ describe('integration: error propagation end-to-end', () => {
   })
 
   it('rejects on state mismatch (CSRF) and never reaches the exchange', async () => {
-    stubPopupOpen('https://app.test/callback?code=C&state=tampered')
+    const open = stubPopupOpenEchoingState('https://app.test/callback', { code: 'C' })
     const fetchMock = stubFetch(jsonResponse({}))
 
-    // the popup echoes a state the library never generated
     const pending = makeAuth().authenticate('x')
     const assertion = expect(pending).rejects.toThrow(/state mismatch/i)
+    await waitForPopupOpen(open)
+
+    // tamper the STORED state mid-flight (what a hostile concurrent writer
+    // would do): the popup echoes the real state, storage disagrees
+    for (let i = 0; i < window.sessionStorage.length; i++) {
+      const key = window.sessionStorage.key(i)!
+      if (key.endsWith('.state')) window.sessionStorage.setItem(key, 'tampered')
+    }
+
     await drivePopupPoll()
     await assertion
     expect(fetchMock).not.toHaveBeenCalled()

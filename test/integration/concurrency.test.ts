@@ -24,9 +24,7 @@ describe('integration: concurrent flows for one provider', () => {
     const { SocialAuth } = await import('../../src')
 
     const popups: ReturnType<typeof fakeCrossOriginPopup>[] = []
-    const urls: string[] = []
-    vi.spyOn(window, 'open').mockImplementation((...args: unknown[]) => {
-      urls.push(String(args[0]))
+    vi.spyOn(window, 'open').mockImplementation(() => {
       const popup = fakeCrossOriginPopup()
       popups.push(popup)
       return popup as unknown as Window
@@ -47,7 +45,7 @@ describe('integration: concurrent flows for one provider', () => {
     await vi.advanceTimersByTimeAsync(10)
 
     expect(popups).toHaveLength(2)
-    const stateOf = (i: number) => new URL(urls[i]!).searchParams.get('state')!
+    const stateOf = (i: number) => new URL(popups[i]!.navigatedUrl!).searchParams.get('state')!
     expect(stateOf(0)).not.toBe(stateOf(1))
 
     // resolve them out of order: the second flow answers first

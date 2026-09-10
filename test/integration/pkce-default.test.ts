@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest'
 
-import { drivePopupPoll, stubPopupOpen, useFakeClock, waitForPopupOpen } from './helpers'
+import {
+  drivePopupPoll,
+  navigatedUrl,
+  stubPopupOpen,
+  useFakeClock,
+  waitForPopupOpen,
+} from './helpers'
 
 async function authorizeUrlFor(config: Record<string, unknown>): Promise<URL> {
   const { SocialAuth } = await import('../../src')
@@ -17,9 +23,10 @@ async function authorizeUrlFor(config: Record<string, unknown>): Promise<URL> {
   })
   const pending = auth.authenticate('mycorp').catch(() => undefined)
   await waitForPopupOpen(open)
+  const url = navigatedUrl(open)
   await drivePopupPoll()
   await pending
-  return new URL((open.mock.calls[0] as [string])[0])
+  return url
 }
 
 /**

@@ -1,6 +1,7 @@
 import { getCurrentInstance, inject } from 'vue-demi'
 
 import type { SocialAuth } from './client'
+import { SocialAuthError } from './errors'
 import { SOCIAL_AUTH_KEY } from './plugin'
 
 /**
@@ -37,7 +38,8 @@ export function useSocialAuth(): SocialAuth {
     ?.$socialAuth
   if (fromGlobal) return fromGlobal
 
-  throw new Error(
-    '[vue-social-auth] No instance found. Call app.use(createSocialAuth(...)) before useSocialAuth().',
+  throw new SocialAuthError(
+    'config',
+    'No instance found. Call app.use(createSocialAuth(...)) before useSocialAuth().',
   )
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 
-import { stubPopupOpen, useFakeClock } from './helpers'
+import { navigatedUrl, stubPopupOpen, useFakeClock } from './helpers'
 
 /**
  * Provider-configuration resolution, observed at the only place it is
@@ -11,10 +11,10 @@ import { stubPopupOpen, useFakeClock } from './helpers'
  * optional URL params. The flow then failed state verification on the way
  * back, reporting a CSRF error for what was a library defaulting bug.
  */
-/** Read the authorization URL the popup was opened with. */
+/** Read the authorization URL the popup was navigated to. */
 function authorizeUrl(spy: ReturnType<typeof stubPopupOpen>): URL {
   expect(spy).toHaveBeenCalled()
-  return new URL((spy.mock.calls[0] as [string])[0])
+  return navigatedUrl(spy)
 }
 
 describe('integration: provider config resolution', () => {

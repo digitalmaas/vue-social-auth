@@ -1,6 +1,9 @@
+import { SocialAuthError } from './errors'
 import { CALLBACK_MESSAGE_SOURCE } from './popup'
 import type { CallbackMessage } from './popup'
 import { parseQuery } from './utils'
+
+export type { CallbackMessage } from './popup'
 
 /**
  * Options for {@link postAuthorizationResult}.
@@ -49,8 +52,9 @@ export function postAuthorizationResult(options: PostAuthorizationResultOptions)
   if (typeof window === 'undefined') return
 
   if (!/^https?:\/\/[^/]+$/.test(options.targetOrigin)) {
-    throw new Error(
-      `[vue-social-auth] postAuthorizationResult: targetOrigin must be an exact origin ` +
+    throw new SocialAuthError(
+      'config',
+      `postAuthorizationResult: targetOrigin must be an exact origin ` +
         `like "https://app.example.com", got ${JSON.stringify(options.targetOrigin)}. ` +
         'A wildcard would hand the authorization code to any origin.',
     )
@@ -58,8 +62,9 @@ export function postAuthorizationResult(options: PostAuthorizationResultOptions)
 
   const opener = window.opener as Window | null
   if (!opener) {
-    throw new Error(
-      '[vue-social-auth] postAuthorizationResult: this page has no opener. ' +
+    throw new SocialAuthError(
+      'config',
+      'postAuthorizationResult: this page has no opener. ' +
         'It is meant to run in the popup opened by authenticate().',
     )
   }

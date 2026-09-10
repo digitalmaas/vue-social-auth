@@ -92,6 +92,7 @@ describe('buildAuthorizationQuery', () => {
       'a b&c',
     )
     expect(raw).toContain('redirect_uri=https%3A%2F%2Fapp.test%2Fcb%3Fa%3Db%26c%3Dd')
-    expect(raw).toContain('state=a%20b%26c')
+    // URLSearchParams uses application/x-www-form-urlencoded: space is `+`
+    expect(raw).toContain('state=a+b%26c')
   })
 })

@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 import {
   callbackEnvelope,
   deliverCallbackMessage,
+  navigatedUrl,
   stubCrossOriginPopupOpen,
   stubPopupOpenEchoingState,
   useFakeClock,
@@ -90,7 +91,8 @@ describe('integration: popup lifecycle', () => {
 
     await vi.advanceTimersByTimeAsync(10)
     popup.closed = true
-    await vi.advanceTimersByTimeAsync(300)
+    // one poll tick to observe the close, then the post-close grace period
+    await vi.advanceTimersByTimeAsync(1000)
     await assertion
 
     expect(window.sessionStorage.length).toBe(0)
@@ -122,7 +124,7 @@ describe('integration: popup lifecycle', () => {
     const pending = auth.authenticate('mycorp')
     await vi.advanceTimersByTimeAsync(10)
 
-    const state = new URL((open.mock.calls[0] as [string])[0]).searchParams.get('state')!
+    const state = navigatedUrl(open).searchParams.get('state')!
     deliverCallbackMessage({
       data: callbackEnvelope({ code: 'POSTED', state }),
       origin: location.origin,

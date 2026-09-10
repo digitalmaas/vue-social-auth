@@ -52,10 +52,11 @@ describe('integration: postMessage callback channel', () => {
     const auth = new SocialAuth(makeAuth())
 
     const pending = auth.authenticate('mycorp')
-    // let the listener register and the popup open
+    // let the listener register and the popup navigate
     await vi.advanceTimersByTimeAsync(10)
 
-    const authorizeUrl = new URL((spy.mock.calls[0] as [string])[0])
+    expect(spy).toHaveBeenCalled()
+    const authorizeUrl = new URL(popup.navigatedUrl!)
     const state = authorizeUrl.searchParams.get('state')!
     expect(state).toBeTruthy()
     return { pending, popup, state, auth }

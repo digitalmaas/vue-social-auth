@@ -1,3 +1,4 @@
+import { SocialAuthError } from './errors'
 import type { StorageAdapter } from './types'
 
 class SessionStorageAdapter implements StorageAdapter {
@@ -63,8 +64,9 @@ export function createStorage(
 ): StorageAdapter {
   if (adapter) return adapter
   if (!probeSessionStorage()) {
-    throw new Error(
-      'vue-social-auth: sessionStorage is required but unavailable. ' +
+    throw new SocialAuthError(
+      'config',
+      'sessionStorage is required but unavailable. ' +
         'Pass a custom `storage` adapter or enable session storage.',
     )
   }
@@ -90,7 +92,8 @@ export function flowKeys(
   }
 }
 
-const EXPIRY_SUFFIX = '.exp'
+/** `<provider>.<state>.exp` — the expiry key shape {@link flowKeys} produces. */
+const FLOW_EXPIRY_RE = /^(.+)\.([^.]+)\.exp$/
 
 /**
  * Remove entries left behind by flows that can no longer complete.
@@ -100,23 +103,29 @@ const EXPIRY_SUFFIX = '.exp'
  * entries nothing would otherwise collect. Each flow records an expiry, and
  * only flows past it are swept — a live concurrent flow is never touched.
  *
+ * Expired flows of EVERY provider are swept, not just the one starting the
+ * current flow: an abandoned github flow (whose entries include the PKCE
+ * `code_verifier`, a secret) must not outlive a tab that only ever runs
+ * google flows. Only keys matching the flow-key shape are touched, because
+ * with `namespace: ''` or a custom adapter the store may hold unrelated
+ * entries.
+ *
  * A no-op for custom adapters that do not implement `keys()`.
  *
  * @param storage - The adapter to sweep.
- * @param provider - Only sweep flows belonging to this provider.
  * @param now - Current epoch milliseconds.
  */
-export function sweepExpiredFlows(storage: StorageAdapter, provider: string, now: number): void {
+export function sweepExpiredFlows(storage: StorageAdapter, now: number): void {
   const all = storage.keys?.()
   if (!all) return
 
   for (const key of all) {
-    if (!key.startsWith(`${provider}.`) || !key.endsWith(EXPIRY_SUFFIX)) continue
+    const match = FLOW_EXPIRY_RE.exec(key)
+    if (!match) continue
     const expiry = Number(storage.getItem(key))
     if (Number.isFinite(expiry) && expiry > now) continue
 
-    const state = key.slice(provider.length + 1, -EXPIRY_SUFFIX.length)
-    const keys = flowKeys(provider, state)
+    const keys = flowKeys(match[1]!, match[2]!)
     storage.removeItem(keys.state)
     storage.removeItem(keys.verifier)
     storage.removeItem(keys.expiry)

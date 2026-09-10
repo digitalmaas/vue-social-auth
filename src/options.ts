@@ -129,7 +129,7 @@ export function buildAuthorizationQuery(
     pairs.push(['code_challenge_method', 'S256'])
   }
 
-  return pairs.map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`).join('&')
+  return new URLSearchParams(pairs).toString()
 }
 
 function resolveParam(config: ProviderConfig, paramName: string): string | undefined {

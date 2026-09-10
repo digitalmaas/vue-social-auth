@@ -3,7 +3,13 @@ import type { AuthorizationResponse, PopupOptions } from './types'
 import { parseQuery } from './utils'
 
 const POLL_INTERVAL_MS = 250
-const DEFAULT_TIMEOUT_MS = 300_000
+/**
+ * A callback page posts its result and then closes itself; the message task
+ * can still be queued behind the tick that observes the close. One grace
+ * period lets a pending result win before the close is treated as the user
+ * abandoning the flow.
+ */
+const CLOSE_GRACE_MS = 500
 
 /** Discriminator on the envelope a callback page posts back. */
 export const CALLBACK_MESSAGE_SOURCE = 'vue-social-auth'
@@ -27,7 +33,7 @@ export interface OpenOptions {
   /** The `state` this flow sent, used to match results to this flow. */
   expectedState: string
   /** Milliseconds before the flow gives up. */
-  timeoutMs?: number
+  timeoutMs: number
 }
 
 function computeGeometry(opts: PopupOptions): PopupGeometry {
@@ -68,6 +74,12 @@ function isCallbackMessage(data: unknown): data is CallbackMessage {
 /**
  * Opens the authorization popup and waits for the redirect result.
  *
+ * The window opens on `about:blank` and is navigated to the authorization URL
+ * afterwards via {@link navigate}. `window.open` must run synchronously inside
+ * the user's click — Safari does not preserve transient activation across an
+ * awaited promise, so a flow that awaits (e.g. PKCE's `crypto.subtle`) before
+ * opening would be blocked on a legitimate click.
+ *
  * Two channels are armed for every flow and race each other:
  *
  * 1. `postMessage` from a callback page (see `postAuthorizationResult`). This
@@ -81,9 +93,9 @@ function isCallbackMessage(data: unknown): data is CallbackMessage {
  */
 export class OAuthPopup {
   private popup: Window | null = null
+  private abort: ((err: Error) => void) | null = null
 
   constructor(
-    private readonly url: string,
     private readonly name: string,
     private readonly options: PopupOptions = {},
   ) {}
@@ -95,20 +107,24 @@ export class OAuthPopup {
       )
     }
 
-    const expectedOrigin = new URL(options.redirectUri, window.location.origin).origin
-    const redirectPath = new URL(options.redirectUri, window.location.origin).pathname
+    const redirect = new URL(options.redirectUri, window.location.origin)
+    const expectedOrigin = redirect.origin
+    const redirectPath = redirect.pathname
 
     return new Promise<AuthorizationResponse>((resolve, reject) => {
       let done = false
       let timer: number | undefined
       let deadline: number | undefined
+      let grace: number | undefined
 
       const cleanup = (): void => {
         if (timer !== undefined) window.clearInterval(timer)
         if (deadline !== undefined) window.clearTimeout(deadline)
+        if (grace !== undefined) window.clearTimeout(grace)
         window.removeEventListener('message', onMessage)
         timer = undefined
         deadline = undefined
+        grace = undefined
       }
 
       const settle = (fn: () => void): void => {
@@ -122,6 +138,10 @@ export class OAuthPopup {
         }
         this.popup = null
         fn()
+      }
+
+      this.abort = (err: Error): void => {
+        settle(() => reject(err))
       }
 
       const succeed = (params: Record<string, string>): void => {
@@ -164,17 +184,15 @@ export class OAuthPopup {
 
       const features = formatFeatures(computeGeometry(this.options))
       try {
-        this.popup = window.open(this.url, this.name, features)
+        this.popup = window.open('about:blank', this.name, features)
       } catch {
-        done = true
-        cleanup()
-        reject(new SocialAuthError('popup_blocked', 'OAuth popup could not be opened'))
+        settle(() =>
+          reject(new SocialAuthError('popup_blocked', 'OAuth popup could not be opened')),
+        )
         return
       }
       if (!this.popup) {
-        done = true
-        cleanup()
-        reject(new SocialAuthError('popup_blocked', 'OAuth popup was blocked'))
+        settle(() => reject(new SocialAuthError('popup_blocked', 'OAuth popup was blocked')))
         return
       }
       try {
@@ -187,14 +205,20 @@ export class OAuthPopup {
         settle(() =>
           reject(new SocialAuthError('timeout', 'Timed out waiting for the authorization popup')),
         )
-      }, options.timeoutMs ?? DEFAULT_TIMEOUT_MS)
+      }, options.timeoutMs)
 
       timer = window.setInterval(() => {
         if (done) return
         if (!this.popup || this.popup.closed) {
-          settle(() =>
-            reject(new SocialAuthError('popup_closed', 'Authorization popup was closed')),
-          )
+          // Stop polling — the window is gone — but give a queued postMessage
+          // result one grace period to win before rejecting.
+          if (timer !== undefined) window.clearInterval(timer)
+          timer = undefined
+          grace = window.setTimeout(() => {
+            settle(() =>
+              reject(new SocialAuthError('popup_closed', 'Authorization popup was closed')),
+            )
+          }, CLOSE_GRACE_MS)
           return
         }
 
@@ -212,8 +236,29 @@ export class OAuthPopup {
         if (location.pathname !== redirectPath) return
         // Query string only. A fragment carrying an implicit-flow access_token
         // is not a result this library will ever return.
-        succeed(parseQuery(location.search))
+        const params = parseQuery(location.search)
+        // Same acceptance rule as the postMessage channel: a result must carry
+        // this flow's `state` (or a provider `error`). A bare page at the
+        // redirect path — e.g. an SPA route that already consumed its query —
+        // is not a result.
+        const isUnstatedError = params.state === undefined && params.error !== undefined
+        if (!isUnstatedError && params.state !== options.expectedState) return
+        succeed(params)
       }, POLL_INTERVAL_MS)
     })
+  }
+
+  /**
+   * Navigate the already-open popup to the authorization URL. The popup is
+   * still on `about:blank` (same-origin), so `location.replace` is permitted
+   * and keeps `about:blank` out of the popup's history.
+   */
+  navigate(url: string): void {
+    this.popup?.location.replace(url)
+  }
+
+  /** Settle the pending {@link open} promise with `err`. No-op once settled. */
+  cancel(err: Error): void {
+    this.abort?.(err)
   }
 }

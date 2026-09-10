@@ -24,21 +24,33 @@ export function useFakeClock(): void {
 }
 
 /**
- * Yield until the stubbed `window.open` has actually been called.
+ * Yield until the popup has been navigated to its authorization URL.
  *
- * A flow does asynchronous work before it opens its popup (PKCE calls
- * `crypto.subtle`), so advancing the clock immediately can jump past a
- * deadline that was never armed. Waiting on the observable event instead of a
- * fixed delay keeps such tests from depending on file order.
+ * The window itself opens synchronously (on `about:blank`), but a flow does
+ * asynchronous work before navigating it (PKCE calls `crypto.subtle`), so
+ * advancing the clock immediately can jump past a deadline that was never
+ * armed. Waiting on the observable event instead of a fixed delay keeps such
+ * tests from depending on file order.
  */
-export async function waitForPopupOpen(spy: { mock: { calls: unknown[] } }): Promise<void> {
-  for (let i = 0; i < 100 && spy.mock.calls.length === 0; i++) {
+export async function waitForPopupOpen(spy: {
+  mock: { results: { value: unknown }[] }
+}): Promise<void> {
+  const navigated = () =>
+    Boolean((spy.mock.results[0]?.value as { navigatedUrl?: string } | undefined)?.navigatedUrl)
+  for (let i = 0; i < 100 && !navigated(); i++) {
     // Sequential by design: each tick must be observed before deciding whether
     // to advance again. Promise.all would defeat the purpose.
     // eslint-disable-next-line no-await-in-loop
     await vi.advanceTimersByTimeAsync(1)
   }
-  if (spy.mock.calls.length === 0) throw new Error('popup was never opened')
+  if (!navigated()) throw new Error('popup was never navigated')
+}
+
+/** The authorization URL the library navigated the first stubbed popup to. */
+export function navigatedUrl(spy: { mock: { results: { value: unknown }[] } }): URL {
+  const popup = spy.mock.results[0]?.value as { navigatedUrl?: string } | undefined
+  if (!popup?.navigatedUrl) throw new Error('popup was never navigated')
+  return new URL(popup.navigatedUrl)
 }
 
 /**
@@ -51,43 +63,70 @@ export async function drivePopupPoll(): Promise<void> {
 }
 
 /**
- * Fake popup Window driven to a fixed redirect URL. `popup.ts` polls
- * `location.{href,search,hash,pathname}` and matches against the provider's
- * `redirectUri`, so those four fields are all the poll loop reads.
+ * Fake popup Window. It starts on `about:blank`, as the real flow's popup
+ * does (the window must open synchronously inside the user's click);
+ * `location.replace` models the provider redirect by landing straight on
+ * `redirectHref`. `popup.ts` polls `location.{href,search,hash,pathname}`,
+ * so those four fields are all the poll loop reads.
  */
 export function fakePopup(redirectHref: string) {
   const u = new URL(redirectHref)
-  return {
+  const popup = {
     closed: false,
+    /** The authorization URL the library navigated this popup to. */
+    navigatedUrl: undefined as string | undefined,
     focus() {},
     close() {
-      this.closed = true
+      popup.closed = true
     },
     location: {
-      href: redirectHref,
-      search: u.search,
-      hash: u.hash,
-      pathname: u.pathname,
+      href: 'about:blank',
+      search: '',
+      hash: '',
+      pathname: '',
+      replace(url: string) {
+        popup.navigatedUrl = url
+        popup.location.href = redirectHref
+        popup.location.search = u.search
+        popup.location.hash = u.hash
+        popup.location.pathname = u.pathname
+      },
     },
   }
+  return popup
 }
 
 /**
- * Fake popup whose `location` throws on access, as a real cross-origin popup
- * does. The polling channel can learn nothing from this window, so a flow that
- * completes against it completed via `postMessage`.
+ * Fake popup whose `location` throws on access once navigated, as a real
+ * cross-origin popup does. The polling channel can learn nothing from this
+ * window, so a flow that completes against it completed via `postMessage`.
  */
 export function fakeCrossOriginPopup() {
-  return {
+  const blankLocation = {
+    href: 'about:blank',
+    search: '',
+    hash: '',
+    pathname: '',
+    replace(url: string) {
+      popup.navigatedUrl = url
+    },
+  }
+  const popup = {
     closed: false,
+    /** The authorization URL the library navigated this popup to. */
+    navigatedUrl: undefined as string | undefined,
     focus() {},
     close() {
-      this.closed = true
+      popup.closed = true
     },
-    get location(): never {
+    get location() {
+      // Readable while still on about:blank (same-origin), unreadable once
+      // navigated to the provider — exactly a real cross-origin popup.
+      if (popup.navigatedUrl === undefined) return blankLocation
       throw new DOMException('Blocked a frame from accessing a cross-origin frame.')
     },
   }
+  return popup
 }
 
 /** Stub `window.open` to return a popup whose location is unreadable. */
@@ -185,14 +224,35 @@ export function stubPopupOpenEchoingState(
   redirectBase: string,
   extraParams: Record<string, string> = {},
 ) {
-  return vi.spyOn(window, 'open').mockImplementation((...args: unknown[]) => {
-    const authorizeUrl = new URL(String(args[0]))
-    const redirect = new URL(redirectBase)
-    redirect.searchParams.set('state', authorizeUrl.searchParams.get('state') ?? '')
-    for (const [key, value] of Object.entries(extraParams)) {
-      redirect.searchParams.set(key, value)
+  return vi.spyOn(window, 'open').mockImplementation(() => {
+    const popup = {
+      closed: false,
+      /** The authorization URL the library navigated this popup to. */
+      navigatedUrl: undefined as string | undefined,
+      focus() {},
+      close() {
+        popup.closed = true
+      },
+      location: {
+        href: 'about:blank',
+        search: '',
+        hash: '',
+        pathname: '',
+        replace(url: string) {
+          popup.navigatedUrl = url
+          const redirect = new URL(redirectBase)
+          redirect.searchParams.set('state', new URL(url).searchParams.get('state') ?? '')
+          for (const [key, value] of Object.entries(extraParams)) {
+            redirect.searchParams.set(key, value)
+          }
+          popup.location.href = redirect.href
+          popup.location.search = redirect.search
+          popup.location.hash = redirect.hash
+          popup.location.pathname = redirect.pathname
+        },
+      },
     }
-    return fakePopup(redirect.href) as unknown as Window
+    return popup as unknown as Window
   })
 }
 

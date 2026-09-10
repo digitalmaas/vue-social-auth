@@ -24,7 +24,7 @@ describe('sweepExpiredFlows', () => {
   it('removes every key of a flow whose expiry has passed', () => {
     const { storage, keys } = seed('google', 'OLD', NOW - 1)
 
-    sweepExpiredFlows(storage, 'google', NOW)
+    sweepExpiredFlows(storage, NOW)
 
     expect(storage.getItem(keys.state)).toBeNull()
     expect(storage.getItem(keys.verifier)).toBeNull()
@@ -34,7 +34,7 @@ describe('sweepExpiredFlows', () => {
   it('leaves a flow that has not expired alone', () => {
     const { storage, keys } = seed('google', 'LIVE', NOW + 60_000)
 
-    sweepExpiredFlows(storage, 'google', NOW)
+    sweepExpiredFlows(storage, NOW)
 
     expect(storage.getItem(keys.state)).toBe('LIVE')
     expect(storage.getItem(keys.verifier)).toBe('verifier-LIVE')
@@ -44,19 +44,31 @@ describe('sweepExpiredFlows', () => {
     const { keys: stale } = seed('google', 'OLD', NOW - 1)
     const { storage, keys: live } = seed('google', 'LIVE', NOW + 60_000)
 
-    sweepExpiredFlows(storage, 'google', NOW)
+    sweepExpiredFlows(storage, NOW)
 
     expect(storage.getItem(stale.state)).toBeNull()
     expect(storage.getItem(live.state)).toBe('LIVE')
   })
 
-  it('does not touch another provider', () => {
+  it("sweeps another provider's expired flow too: the verifier is a secret", () => {
     const { keys: other } = seed('github', 'OLD', NOW - 1)
+    const { storage } = seed('google', 'LIVE', NOW + 60_000)
+
+    sweepExpiredFlows(storage, NOW)
+
+    expect(storage.getItem(other.state)).toBeNull()
+    expect(storage.getItem(other.verifier)).toBeNull()
+  })
+
+  it('leaves keys that are not flow keys alone (shared/unnamespaced stores)', () => {
     const { storage } = seed('google', 'OLD', NOW - 1)
+    storage.setItem('unrelated', 'keep')
+    storage.setItem('also.unrelated', 'keep')
 
-    sweepExpiredFlows(storage, 'google', NOW)
+    sweepExpiredFlows(storage, NOW)
 
-    expect(storage.getItem(other.state)).toBe('OLD')
+    expect(storage.getItem('unrelated')).toBe('keep')
+    expect(storage.getItem('also.unrelated')).toBe('keep')
   })
 
   it('is a no-op for a custom adapter that cannot enumerate keys', () => {
@@ -67,7 +79,7 @@ describe('sweepExpiredFlows', () => {
       removeItem: (k: string) => void data.delete(k),
     }
 
-    expect(() => sweepExpiredFlows(adapter, 'google', NOW)).not.toThrow()
+    expect(() => sweepExpiredFlows(adapter, NOW)).not.toThrow()
     expect(data.size).toBe(1)
   })
 })

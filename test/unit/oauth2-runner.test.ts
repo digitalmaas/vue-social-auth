@@ -9,6 +9,8 @@ vi.mock('../../src/popup', () => {
     open() {
       return Promise.resolve(popupResponse)
     }
+    navigate() {}
+    cancel() {}
   }
   return { OAuthPopup, CALLBACK_MESSAGE_SOURCE: 'vue-social-auth' }
 })
