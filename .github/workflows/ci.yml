@@ -110,6 +110,13 @@ jobs:
       # analysis when it detects a pull request. No NPM_TOKEN here,
       # deliberately — a dry run must never hold a publish credential.
       #
+      # On a pull_request event env-ci reports the branch as
+      # `refs/pull/N/merge` (from GITHUB_REF), which semantic-release then
+      # compares against the patched config and rejects. Present the run as a
+      # push on the PR head branch instead, so branch resolution lands on the
+      # name the config was just pointed at. The checkout above is that
+      # branch, so git state and env agree.
+      #
       # The grep is the point of this step. When the branch does not match the
       # config, semantic-release logs "configured to only publish from …" and
       # exits 0 — a green check that rehearsed nothing. Fail loudly instead.
@@ -127,6 +134,8 @@ jobs:
           fi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_EVENT_NAME: push
+          GITHUB_REF: refs/heads/${{ github.event.pull_request.head.ref }}
 
   release:
     # One release at a time: two merges in quick succession would otherwise race
