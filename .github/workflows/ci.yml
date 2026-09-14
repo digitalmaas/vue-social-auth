@@ -115,7 +115,8 @@ jobs:
       # compares against the patched config and rejects. Present the run as a
       # push on the PR head branch instead, so branch resolution lands on the
       # name the config was just pointed at. The checkout above is that
-      # branch, so git state and env agree.
+      # branch, so git state and env agree. Exported in the shell, not via
+      # `env:` — the runner silently ignores `env:` overrides of GITHUB_*.
       #
       # The grep is the point of this step. When the branch does not match the
       # config, semantic-release logs "configured to only publish from …" and
@@ -123,6 +124,8 @@ jobs:
       - name: Dry run
         run: |
           set -o pipefail
+          export GITHUB_EVENT_NAME=push
+          export GITHUB_REF="refs/heads/${PR_BRANCH}"
           npm run release:dry 2>&1 | tee dry-run.log
           if grep -q 'configured to only publish from' dry-run.log; then
             echo "::error::The dry run analysed nothing: the branch did not match the patched config, so this check proved nothing."
@@ -134,8 +137,7 @@ jobs:
           fi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITHUB_EVENT_NAME: push
-          GITHUB_REF: refs/heads/${{ github.event.pull_request.head.ref }}
+          PR_BRANCH: ${{ github.event.pull_request.head.ref }}
 
   release:
     # One release at a time: two merges in quick succession would otherwise race
