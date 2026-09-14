@@ -4,6 +4,9 @@ import { createApp, defineComponent, h } from 'vue-demi'
 import type { SocialAuthPlugin } from '../../src'
 import { postAuthorizationResult } from '../../src/callback'
 
+// Captured at import time, before any `vi.useFakeTimers()` swaps the global.
+const realSetTimeout = globalThis.setTimeout
+
 /**
  * Fake timers plus the teardown every popup spec needs: the poll loop is
  * driven by `setInterval`, and mocks/globals must be restored between tests or
@@ -31,6 +34,11 @@ export function useFakeClock(): void {
  * advancing the clock immediately can jump past a deadline that was never
  * armed. Waiting on the observable event instead of a fixed delay keeps such
  * tests from depending on file order.
+ *
+ * Each spin also sleeps on the REAL clock: `advanceTimersByTimeAsync` yields
+ * through `setImmediate`, so 100 spins take only a few milliseconds of wall
+ * time, while `crypto.subtle.digest` settles on the libuv threadpool and can
+ * need longer than that on a loaded CI runner.
  */
 export async function waitForPopupOpen(spy: {
   mock: { results: { value: unknown }[] }
@@ -42,6 +50,8 @@ export async function waitForPopupOpen(spy: {
     // to advance again. Promise.all would defeat the purpose.
     // eslint-disable-next-line no-await-in-loop
     await vi.advanceTimersByTimeAsync(1)
+    // eslint-disable-next-line no-await-in-loop
+    if (!navigated()) await new Promise((resolve) => realSetTimeout(resolve, 5))
   }
   if (!navigated()) throw new Error('popup was never navigated')
 }
