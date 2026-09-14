@@ -75,7 +75,13 @@ jobs:
     if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-24.04
     permissions:
-      contents: read
+      # write, not read: semantic-release proves it could push with
+      # `git push --dry-run` before it analyses anything, and that probe is
+      # unconditional — a read-only token fails it with EGITNOPERMISSION.
+      # The probe transfers nothing, `--dry-run` skips every publish step,
+      # and the `if` above limits this to same-repo branches, whose authors
+      # already hold push rights. No new capability is granted to anyone.
+      contents: write
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
@@ -95,12 +101,22 @@ jobs:
       # --branches=anything still reports "configured to only publish from
       # main"). So point the config at this PR branch for the rehearsal. The
       # checkout is ephemeral; nothing is committed.
+      #
+      # `npmPublish: false` for the same reason: the npm plugin verifies
+      # registry auth up front (token or OIDC exchange) and there is neither
+      # here by design. Turning publish off skips that check while keeping
+      # branch resolution, commit analysis and release-notes generation —
+      # the parts this rehearsal exists to prove.
       - name: Target the config at this branch
         run: |
           node -e '
             const fs = require("fs");
             const cfg = JSON.parse(fs.readFileSync(".releaserc.json", "utf8"));
             cfg.branches = [process.env.PR_BRANCH];
+            const npm = "@semantic-release/npm";
+            const i = cfg.plugins.findIndex((p) => (Array.isArray(p) ? p[0] : p) === npm);
+            if (i < 0) throw new Error(`${npm} not found in plugins`);
+            cfg.plugins[i] = [npm, { npmPublish: false }];
             fs.writeFileSync(".releaserc.json", JSON.stringify(cfg, null, 2));
           '
         env:
