@@ -1,0 +1,29 @@
+pre-commit:
+  parallel: true
+  commands:
+    lint:
+      skip:
+        - merge-commit
+        - merge
+        - rebase
+      glob: '*.{ts,tsx,js,mjs,cjs}'
+      run: npm run lint:fix -- {staged_files}
+    format:
+      skip:
+        - merge
+        - rebase
+      glob: '*.{ts,tsx,js,mjs,cjs,json,jsonc}'
+      run: npm run format -- --no-error-on-unmatched-pattern {staged_files}
+      stage_fixed: true
+
+commit-msg:
+  commands:
+    commitlint:
+      run: npx --no -- commitlint --edit {1}
+
+pre-push:
+  commands:
+    test:
+      skip:
+        - merge-commit
+      run: npm test

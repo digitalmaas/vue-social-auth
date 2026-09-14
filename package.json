@@ -1,0 +1,123 @@
+{
+  "name": "@digitalmaas/vue-social-auth",
+  "version": "0.0.0-semantic",
+  "description": "Social OAuth 2.0 authentication for Vue 2.7+ and Vue 3",
+  "keywords": [
+    "authentication",
+    "digitalmaas",
+    "facebook",
+    "github",
+    "google",
+    "instagram",
+    "oauth",
+    "oauth2",
+    "pkce",
+    "social",
+    "vue",
+    "vue2.7",
+    "vue3"
+  ],
+  "homepage": "https://github.com/digitalmaas/vue-social-auth#readme",
+  "bugs": {
+    "url": "https://github.com/digitalmaas/vue-social-auth/issues"
+  },
+  "license": "MIT",
+  "author": "DigitalMaas (https://www.digitalmaas.com)",
+  "contributors": [
+    "Andre-John Mas <andrejohn.mas+gh@gmail.com>",
+    "Claude <noreply@anthropic.com> (https://claude.ai)",
+    "Davor Grubelic <davor.grubelic@gmail.com>",
+    "Ricardo Nolde <12801563+nolde@users.noreply.github.com>"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/digitalmaas/vue-social-auth.git"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "main": "./dist/index.umd.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "unpkg": "./dist/index.umd.cjs",
+  "jsdelivr": "./dist/index.umd.cjs",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.umd.cjs",
+      "default": "./dist/index.umd.cjs"
+    },
+    "./callback": {
+      "types": "./dist/callback.d.ts",
+      "import": "./dist/callback.js",
+      "require": "./dist/callback.umd.cjs",
+      "default": "./dist/callback.umd.cjs"
+    },
+    "./package.json": "./package.json"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "build": "tsdown",
+    "check": "npm run lint && npm run format:check && npm run test:types",
+    "dev": "tsdown --watch",
+    "format": "oxfmt --write",
+    "format:check": "oxfmt --check",
+    "lint": "oxlint",
+    "lint:fix": "oxlint --fix",
+    "prepare": "lefthook install",
+    "prepublishOnly": "npm run verify:package",
+    "verify:package": "node scripts/verify-package.mjs",
+    "release": "semantic-release",
+    "release:dry": "semantic-release --dry-run --no-ci",
+    "test": "npm run test:types && npm run test:unit && npm run test:integration",
+    "test:types": "vue-demi-switch 3 vue3 && tsc --noEmit",
+    "test:unit": "npm run test:unit:vue3 && npm run test:unit:vue2",
+    "test:unit:vue3": "vue-demi-switch 3 vue3 && vitest run test/unit",
+    "test:unit:vue2": "vue-demi-switch 2.7 vue2 && vitest run test/unit && vue-demi-switch 3 vue3",
+    "test:integration": "npm run test:integration:vue3 && npm run test:integration:vue2",
+    "test:integration:vue3": "vue-demi-switch 3 vue3 && vitest run test/integration",
+    "test:integration:vue2": "vue-demi-switch 2.7 vue2 && vitest run test/integration --exclude \"**/vue-flow.test.ts\" && vue-demi-switch 3 vue3",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "vue-demi": "^0.14.10"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "20.5.3",
+    "@commitlint/config-conventional": "20.5.3",
+    "@semantic-release/changelog": "7.0.0",
+    "@semantic-release/commit-analyzer": "13.0.1",
+    "@semantic-release/git": "11.0.1",
+    "@semantic-release/github": "12.0.9",
+    "@semantic-release/npm": "13.1.5",
+    "@semantic-release/release-notes-generator": "14.1.1",
+    "@types/node": "20.19.43",
+    "conventional-changelog-conventionalcommits": "9.3.1",
+    "happy-dom": "20.10.6",
+    "lefthook": "2.1.9",
+    "oxfmt": "0.55.0",
+    "oxlint": "1.70.0",
+    "semantic-release": "25.0.9",
+    "tsdown": "0.22.0",
+    "typescript": "5.9.3",
+    "vitest": "4.1.9",
+    "vue2": "npm:vue@^2.7.0",
+    "vue3": "npm:vue@^3.4.0"
+  },
+  "peerDependencies": {
+    "vue": "^2.7.0 || >=3.0.0"
+  },
+  "allowScripts": {
+    "lefthook@2.1.9": true,
+    "esbuild@0.21.5": true,
+    "vue-demi@0.14.10": true
+  }
+}

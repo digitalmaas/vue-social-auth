@@ -1,0 +1,6 @@
+{
+  "extends": ["@commitlint/config-conventional"],
+  "rules": {
+    "breaking-change-exclamation-mark": [2, "always"]
+  }
+}

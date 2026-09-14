@@ -1,0 +1,222 @@
+name: CI
+
+on:
+  push:
+    branches: [main, next]
+  pull_request:
+
+# Least privilege by default; the release job widens this for itself.
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          # the commit-message lint below walks a range; a shallow clone has
+          # neither end of it
+          fetch-depth: 0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run format:check
+      - run: npm run test:types
+      # commit messages decide the version number, so they are linted like code
+      - name: Lint commit messages
+        if: github.event_name == 'pull_request'
+        run: >-
+          npx --no -- commitlint
+          --from ${{ github.event.pull_request.base.sha }}
+          --to ${{ github.event.pull_request.head.sha }}
+          --verbose
+
+  test:
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        vue: [vue2, vue3]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # vue-demi-switch rewrites the vue-demi shim in node_modules, which is
+      # shared mutable state — hence one job per version rather than one job
+      # running both.
+      - run: npm run test:unit:${{ matrix.vue }}
+      - run: npm run test:integration:${{ matrix.vue }}
+
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      # every path declared in package.json must exist after a build
+      - run: npm run verify:package
+
+  # Rehearses the real release against the real registry and git host, stopping
+  # before it publishes anything. This is what turns "is the release config
+  # correct" into a check that runs on every PR, rather than a question the
+  # first real release answers.
+  release-dry-run:
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04
+    permissions:
+      # write, not read: semantic-release proves it could push with
+      # `git push --dry-run` before it analyses anything, and that probe is
+      # unconditional — a read-only token fails it with EGITNOPERMISSION.
+      # The probe transfers nothing, `--dry-run` skips every publish step,
+      # and the `if` above limits this to same-repo branches, whose authors
+      # already hold push rights. No new capability is granted to anyone.
+      contents: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          # check out the PR branch itself, not the detached merge commit:
+          # semantic-release resolves the branch by name
+          ref: ${{ github.event.pull_request.head.ref }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+
+      # semantic-release only analyses a branch listed in `branches`, and its
+      # --branches CLI flag is IGNORED when the config file sets them (verified:
+      # --branches=anything still reports "configured to only publish from
+      # main"). So point the config at this PR branch for the rehearsal. The
+      # checkout is ephemeral; nothing is committed.
+      #
+      # `npmPublish: false` for the same reason: the npm plugin verifies
+      # registry auth up front (token or OIDC exchange) and there is neither
+      # here by design. Turning publish off skips that check while keeping
+      # branch resolution, commit analysis and release-notes generation —
+      # the parts this rehearsal exists to prove.
+      - name: Target the config at this branch
+        run: |
+          node -e '
+            const fs = require("fs");
+            const cfg = JSON.parse(fs.readFileSync(".releaserc.json", "utf8"));
+            cfg.branches = [process.env.PR_BRANCH];
+            const npm = "@semantic-release/npm";
+            const i = cfg.plugins.findIndex((p) => (Array.isArray(p) ? p[0] : p) === npm);
+            if (i < 0) throw new Error(`${npm} not found in plugins`);
+            cfg.plugins[i] = [npm, { npmPublish: false }];
+            fs.writeFileSync(".releaserc.json", JSON.stringify(cfg, null, 2));
+          '
+        env:
+          PR_BRANCH: ${{ github.event.pull_request.head.ref }}
+
+      # --no-ci is required (in the script): semantic-release exits before any
+      # analysis when it detects a pull request. No NPM_TOKEN here,
+      # deliberately — a dry run must never hold a publish credential.
+      #
+      # On a pull_request event env-ci reports the branch as
+      # `refs/pull/N/merge` (from GITHUB_REF), which semantic-release then
+      # compares against the patched config and rejects. Present the run as a
+      # push on the PR head branch instead, so branch resolution lands on the
+      # name the config was just pointed at. The checkout above is that
+      # branch, so git state and env agree. Exported in the shell, not via
+      # `env:` — the runner silently ignores `env:` overrides of GITHUB_*.
+      #
+      # The grep is the point of this step. When the branch does not match the
+      # config, semantic-release logs "configured to only publish from …" and
+      # exits 0 — a green check that rehearsed nothing. Fail loudly instead.
+      - name: Dry run
+        run: |
+          set -o pipefail
+          export GITHUB_EVENT_NAME=push
+          export GITHUB_REF="refs/heads/${PR_BRANCH}"
+          npm run release:dry 2>&1 | tee dry-run.log
+          if grep -q 'configured to only publish from' dry-run.log; then
+            echo "::error::The dry run analysed nothing: the branch did not match the patched config, so this check proved nothing."
+            exit 1
+          fi
+          if ! grep -qE 'Analysis of .* commits complete|There are no relevant changes' dry-run.log; then
+            echo "::error::The dry run did not reach commit analysis."
+            exit 1
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_BRANCH: ${{ github.event.pull_request.head.ref }}
+
+  release:
+    # One release at a time: two merges in quick succession would otherwise race
+    # to compute a version from a moving history.
+    concurrency:
+      group: release-${{ github.ref }}
+      cancel-in-progress: false
+    # A real dependency, not a loose coupling: the release cannot start until
+    # lint, typecheck, the full dual-Vue matrix and the build have all passed
+    # on this exact commit.
+    needs: [check, test, build]
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/next')
+    runs-on: ubuntu-24.04
+    permissions:
+      # semantic-release authenticates with the App token below, not
+      # GITHUB_TOKEN, so these grants cover only the checkout and the OIDC
+      # exchange. Issue/PR grants would be dead weight: successComment and
+      # failComment are both disabled.
+      contents: read
+      id-token: write # OIDC, for npm trusted publishing and provenance
+    steps:
+      # A GitHub App token, not GITHUB_TOKEN: `main` is protected, and the
+      # release pushes a changelog commit to it. The App must be on the
+      # protection bypass list — see plans/release-setup.md.
+      - name: Mint a GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@d72941d797fd3113feb6b93fd0dec494b13a2547 # v1.12.0
+        with:
+          app-id: ${{ secrets.RELEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          # semantic-release reads the whole history to work out what changed
+          fetch-depth: 0
+          token: ${{ steps.app-token.outputs.token }}
+          # Do NOT persist: it writes the App token into .git/config as an
+          # http.extraheader, where the `npm ci` below — which runs lifecycle
+          # scripts from the whole dependency tree — could read it.
+          # semantic-release builds its own authenticated push URL from
+          # GITHUB_TOKEN and does not need the credential on disk.
+          persist-credentials: false
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+          cache: npm
+
+      # Trusted publishing and provenance need a recent npm; the one bundled
+      # with the Node setup above is not guaranteed to be new enough.
+      - name: Pin npm
+        run: npm install --global npm@^11.5.1
+
+      - run: npm ci
+      - run: npm run build
+
+      - name: Release
+        env:
+          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
+          # BOOTSTRAP ONLY. npm cannot configure a trusted publisher for a
+          # package that does not exist yet, so the first release authenticates
+          # with a token. Once 1.0.0 is on the registry, configure trusted
+          # publishing, delete these two lines, and REVOKE the token.
+          # See plans/release-setup.md, step 7.
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm run release
